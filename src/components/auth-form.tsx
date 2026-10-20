@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowRight, Eye, EyeOff, KeyRound, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
-import { loginAction, registerAction, type FormState } from "@/app/(auth)/actions";
+import { loginAction, registerAction, resetPasswordAction, type FormState } from "@/app/(auth)/actions";
 
 // React clears a <form action> after every submit, which would wipe what the person typed after an
 // error. Submitting by hand keeps the fields as they are.
@@ -30,11 +30,11 @@ function ErrorNote({ message }: { message?: string }) {
   );
 }
 
-function PasswordField({ id, autoComplete, hint }: { id: string; autoComplete: string; hint?: string }) {
+function PasswordField({ id, autoComplete, hint, label = "Password" }: { id: string; autoComplete: string; hint?: string; label?: string }) {
   const [show, setShow] = useState(false);
   return (
     <div>
-      <Label htmlFor={id}>Password</Label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="relative">
         <Input
           id={id}
@@ -80,6 +80,11 @@ export function LoginForm() {
           <Input id="email" name="email" type="email" autoComplete="email" required autoFocus defaultValue={state?.values?.email} />
         </div>
         <PasswordField id="password" autoComplete="current-password" />
+        <div className="-mt-1 text-right">
+          <Link href="/forgot-password" className="text-sm font-medium text-accent hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         <ErrorNote message={state?.error} />
         <Submit pending={pending}>Sign in</Submit>
       </form>
@@ -137,6 +142,48 @@ export function RegisterForm() {
         Already registered?{" "}
         <Link href="/login" className="font-medium text-accent hover:underline">
           Sign in
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+
+export function ResetForm() {
+  const [state, action, pending] = useActionState<FormState, FormData>(resetPasswordAction, undefined);
+  return (
+    <div className="glass rounded-[30px] p-7 sm:p-9">
+      <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Set a new password</h1>
+      <p className="mt-1.5 text-[15px] text-muted">Enter your email and the reset code you were given.</p>
+      <form onSubmit={submitter(action)} className="mt-7 space-y-4">
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" name="email" type="email" autoComplete="email" required autoFocus defaultValue={state?.values?.email} />
+        </div>
+        <div>
+          <Label htmlFor="code">Reset code</Label>
+          <div className="relative">
+            <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted" />
+            <Input
+              id="code"
+              name="code"
+              required
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              placeholder="RSET-XXXX-XXXX"
+              className="pl-11 font-mono tracking-wider"
+              defaultValue={state?.values?.code}
+            />
+          </div>
+        </div>
+        <PasswordField id="password" label="New password" autoComplete="new-password" hint="At least 10 characters." />
+        <ErrorNote message={state?.error} />
+        <Submit pending={pending}>Set password and sign in</Submit>
+      </form>
+      <p className="mt-6 text-center text-sm text-muted">
+        <Link href="/login" className="font-medium text-accent hover:underline">
+          Back to sign in
         </Link>
       </p>
     </div>

@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LimitForm } from "@/components/limit-form";
+import { ResetCodeButton } from "@/components/reset-code-button";
 import { AutoRefresh } from "@/components/presence";
 import { setDisabledAction, setRoleAction } from "./actions";
 
@@ -158,7 +159,10 @@ export default async function UsersPage() {
                 {!isMe && (
                   <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
                     {u.role === "member" && <LimitForm id={u.id} current={u.limit_cents === null ? "unlimited" : (u.limit_cents / 100).toString()} />}
-                    <div className="ml-auto flex flex-wrap gap-2">
+                    <div className="ml-auto flex flex-wrap items-start gap-2">
+                      {!isOwner && (u.role === "member" || me.email.toLowerCase() === owner) && (
+                        <ResetCodeButton id={u.id} name={u.name} />
+                      )}
                       {!isOwner && (
                         <form action={setRoleAction}>
                           <input type="hidden" name="id" value={u.id} />

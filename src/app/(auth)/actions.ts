@@ -134,3 +134,52 @@ export async function logoutAction() {
   await destroySession();
   redirect("/login");
 }
+
+export async function resetPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const code = String(formData.get("code") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const values = { email, code };
+  if (!email || !code) return { error: "Enter your email and your reset code.", values };
+  const problem = passwordProblem(password);
+  if (problem) return { error: problem, values };
+
+  const ip = await clientIp();
+  if (await isLimited("reset", [{ key: `ip:${ip}`, max: 10 }, { key: `email:${email}`, max: 6 }])) {
+    return { error: "Too many attempts. Wait 15 minutes and try again.", values };
+  }
+  const bad = "That reset code isn't valid, has expired, or was already used.";
+
+  const { rows } = await query<{ id: string; disabled: boolean }>(
+    "select id, disabled from users where lower(email) = $1",
+    [email],
+  );
+  const user = rows[0];
+  let ok = false;
+  if (user && !user.disabled) {
+    const owner = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+    const setup = process.env.SETUP_CODE ?? "";
+    if (email === owner && setup && sameSecret(code, setup)) {
+      // Owner recovery: nobody above the owner can make a code, so the owner uses the SETUP_CODE saved on Render.
+      ok = true;
+    } else {
+      const claimed = await query(
+        `update password_resets set used_at = now()
+          where code_hash = $1 and user_id = $2 and used_at is null and expires_at > now()
+          returning id`,
+        [hashInviteCode(code), user.id],
+      );
+      ok = claimed.rows.length > 0;
+    }
+  }
+  if (!user || !ok) {
+    await recordFailure("reset", [`ip:${ip}`, `email:${email}`]);
+    return { error: bad, values };
+  }
+
+  await query("update users set password_hash = $2 where id = $1", [user.id, await hashPassword(password)]);
+  await query("delete from sessions where user_id = $1", [user.id]); // signs out every old device
+  await clearFailures("reset", `email:${email}`);
+  await createSession(user.id);
+  redirect("/");
+}

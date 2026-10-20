@@ -22,6 +22,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | Path | Screen |
 |---|---|
 | `(auth)/login`, `(auth)/register` | Sign in, and invite-only registration |
+| `(auth)/forgot-password`, `(auth)/reset-password` | Forgot password: an admin makes a one-hour code, the person sets a new password with it |
 | `(auth)/actions.ts` | The server code behind login, register and sign out |
 | `(app)/layout.tsx` | Wraps every signed-in screen (sidebar, top bar, AI chat) |
 | `(app)/page.tsx` | Dashboard |
@@ -34,7 +35,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `(app)/swipe` | Swipe File |
 | `(app)/gethooked` | Get Hooked search |
 | `(app)/team` | Everyone: who is online right now and who is on the team (names only) |
-| `(app)/settings` | Settings (account, usage, account context, connections) |
+| `(app)/settings` | Settings: change name (once per 30 days), change password, your AI usage (working); account context and connections are still samples |
 | `(app)/admin/knowledge-base`, `admin/prompts` | Admin only: course knowledge and prompts |
 | `(app)/admin/invites` | Admin only: create and revoke invite codes (fully working) |
 | `(app)/admin/users` | Admin only: everyone with an account, who is online, promote or demote, switch off, set each person's AI limit (fully working) |

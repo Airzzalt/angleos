@@ -9,6 +9,12 @@ export function generateInviteCode(): string {
   return `ANGL-${part()}-${part()}-${part()}`;
 }
 
+/** Password reset codes look like RSET-K7QM-2XRD (shorter, and they expire after an hour). */
+export function generateResetCode(): string {
+  const part = () => Array.from({ length: 4 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
+  return `RSET-${part()}-${part()}`;
+}
+
 /** Ignores case, spaces and dashes, so "angl k7qm 2xrd 9tnf" still works. */
 export function normalizeInviteCode(input: string): string {
   return input.toUpperCase().replace(/[^A-Z0-9]/g, "");

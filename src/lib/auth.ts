@@ -69,6 +69,13 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
   return r ? { id: r.id, email: r.email, name: r.name, role: r.role, workspaceId: r.workspace_id } : null;
 });
 
+/** Signs a person out everywhere except (optionally) the browser they are using right now. */
+export async function endOtherSessions(userId: string) {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  await query("delete from sessions where user_id = $1 and token_hash <> $2", [userId, token ? sha256(token) : ""]);
+}
+
 export async function destroySession() {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
