@@ -1,0 +1,18 @@
+# dependencies and build output (never stored in OneDrive or GitHub)
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets: never commit these
+.env
+.env.*
+!.env.example
+
+# local test data
+.pglite/
+_sync/
+*.log
+.DS_Store

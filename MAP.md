@@ -1,0 +1,68 @@
+# AngleOS code map
+
+A reference for where everything lives. Updated whenever files are added. The planning notes are in `../planning/`.
+
+## Top level
+| File or folder | What it is |
+|---|---|
+| `README.md` | How to use and run this, written for a non-developer |
+| `MAP.md` | This file |
+| `package.json`, `package-lock.json` | The list of open-source packages the app uses (npm) |
+| `next.config.ts`, `tsconfig.json`, `postcss.config.mjs` | App settings (Next.js, TypeScript, Tailwind) |
+| `render.yaml` | Describes the hosting service on Render |
+| `.env.example` | Names of the secret settings. The real `.env` is never stored here |
+| `.gitignore` | Files that never go to GitHub (secrets, build output, `node_modules`) |
+| `db/migrations/` | The database tables, as numbered SQL files. Applied automatically when the app starts |
+| `tests/` | Automatic checks (`npm test`) |
+| `public/` | Static files served as they are |
+| `src/` | The app itself (below) |
+| `prompts/` | (Phase 1+) Prompt text files, plain text so you can read them |
+
+## `src/app/` (the screens)
+| Path | Screen |
+|---|---|
+| `(auth)/login`, `(auth)/register` | Sign in, and invite-only registration |
+| `(auth)/actions.ts` | The server code behind login, register and sign out |
+| `(app)/layout.tsx` | Wraps every signed-in screen (sidebar, top bar, AI chat) |
+| `(app)/page.tsx` | Dashboard |
+| `(app)/projects`, `projects/new`, `projects/[id]` | Projects list, new project, project detail (brief, context, score) |
+| `(app)/angles` | Angle Generator |
+| `(app)/scripts` | Script Writer with the multi-select format picker |
+| `(app)/studio`, `studio/[style]` | Animated Ad Studio and its seven styles |
+| `(app)/static` | Static Ad Builder |
+| `(app)/analyze` | Analyze Ad |
+| `(app)/swipe` | Swipe File |
+| `(app)/gethooked` | Get Hooked search |
+| `(app)/settings` | Settings (account, usage, account context, connections) |
+| `(app)/admin/knowledge-base`, `admin/prompts` | Admin only: course knowledge and prompts |
+| `(app)/admin/invites` | Admin only: create and revoke invite codes (this one is fully working) |
+| `api/health` | A "is it alive" check used by Render |
+| `globals.css` | The look: colours, dark and light themes |
+
+## `src/lib/` (behind the scenes)
+| File | What it does |
+|---|---|
+| `db.ts` | The one door to the database |
+| `migrate.ts`, `../instrumentation.ts` | Create or update the tables when the app starts |
+| `auth.ts` | Sessions (who is signed in) |
+| `password.ts` | Password hashing |
+| `invite-code.ts` | Making and checking invite codes |
+| `rate-limit.ts` | Slows down password guessing |
+| `nav.ts` | The sidebar menu |
+| `placeholder.ts` | SAMPLE data used by screens that are not built yet |
+
+## `src/components/`
+Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-form.tsx`, `script-writer.tsx`, `static-builder.tsx`, `analyze-ad.tsx`, `project-tabs.tsx`, `invite-form.tsx`, `theme-toggle.tsx`, `logo.tsx`, `page.tsx` (page headers, empty and loading states), and `ui/` (buttons, inputs, cards).
+
+## Status by phase
+| Phase | Status |
+|---|---|
+| 0 Skeleton, login, invites, database, deploy | Built |
+| 0b App shell with sample data | Built, waiting for Ayaan's sign-off |
+| 1 Knowledge base | Not started |
+| 2 Projects | Not started (screens are samples) |
+| 3 Angle Generator | Not started |
+| 4 Script Writer | Not started |
+| 5 Swipe File and Analyze Ad | Not started |
+| 5b Animated Ad Studio and Static Ads | Not started |
+| 6 Get Hooked | Not started |
