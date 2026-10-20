@@ -16,7 +16,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `tests/` | Automatic checks (`npm test`) |
 | `public/` | Static files served as they are |
 | `src/` | The app itself (below) |
-| `prompts/` | (Phase 1+) Prompt text files, plain text so you can read them |
+| `prompts/` | Not used: prompts live in the private database (this repo is public) |
 
 ## `src/app/` (the screens)
 | Path | Screen |
@@ -36,7 +36,8 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `(app)/gethooked` | Get Hooked search |
 | `(app)/team` | Everyone: who is online right now and who is on the team (names only) |
 | `(app)/settings` | Settings: change name (once per 30 days), change password, your AI usage (working); account context and connections are still samples |
-| `(app)/admin/knowledge-base`, `admin/prompts` | Admin only: course knowledge and prompts |
+| `(app)/admin/knowledge-base` | Admin only: import playbook and lessons, test the brain, stats. Sub-pages: `modules/[code]` (read, switch off, edit rules), `lessons` and `lessons/[id]` (cleaned lessons) |
+| `(app)/admin/prompts`, `prompts/[key]` | Admin only: import the Evolve prompts, edit with a reason, full history, restore the original |
 | `(app)/admin/invites` | Admin only: create and revoke invite codes (fully working) |
 | `(app)/admin/users` | Admin only: everyone with an account, who is online, promote or demote, switch off, set each person's AI limit (fully working) |
 | `api/presence` | The "I'm online" ping the open app sends every minute |
@@ -55,6 +56,10 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `usage-limit.ts`, `usage.ts` | The A$10 AI limit rule (members A$10 in total, admins unlimited). Every AI feature checks this first |
 | `nav.ts` | The sidebar menu |
 | `placeholder.ts` | SAMPLE data used by screens that are not built yet |
+| `kb/parse-playbook.ts` | Reads a playbook .md file into a module and numbered rules |
+| `kb/clean-lesson.ts` | Cleans transcripts, flags garbled ones, splits into passages |
+| `kb/prompt-blanks.ts` | Finds the blanks in a prompt |
+| `kb/store.ts` | Saves imports to the database and does the keyword search |
 
 ## `src/components/`
 Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-form.tsx`, `script-writer.tsx`, `static-builder.tsx`, `analyze-ad.tsx`, `project-tabs.tsx`, `invite-form.tsx`, `theme-toggle.tsx`, `logo.tsx`, `page.tsx` (page headers, empty and loading states), and `ui/` (buttons, inputs, cards).
@@ -64,7 +69,7 @@ Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-
 |---|---|
 | 0 Skeleton, login, invites, database, deploy | Built |
 | 0b App shell with sample data | Built, waiting for Ayaan's sign-off |
-| 1 Knowledge base | Not started |
+| 1 Knowledge base | Built (keyword search; meaning search comes with the OpenAI key) |
 | 2 Projects | Not started (screens are samples) |
 | 3 Angle Generator | Not started |
 | 4 Script Writer | Not started |
