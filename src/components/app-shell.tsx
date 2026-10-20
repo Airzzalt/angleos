@@ -141,6 +141,8 @@ export function AppShell({ user, children }: { user: User; children: React.React
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  // The top bar slides away when scrolling down (so it never covers content) and returns when scrolling up.
+  const [barHidden, setBarHidden] = useState(false);
 
   useEffect(() => setNavOpen(false), [pathname]);
   useEffect(() => {
@@ -156,6 +158,25 @@ export function AppShell({ user, children }: { user: User; children: React.React
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    let last = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (y < 60) setBarHidden(false);
+        else if (y > last + 6) setBarHidden(true);
+        else if (y < last - 6) setBarHidden(false);
+        last = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const close = () => setNavOpen(false);
@@ -187,7 +208,13 @@ export function AppShell({ user, children }: { user: User; children: React.React
       </div>
 
       <div className="lg:pl-[284px]">
-        <header className="sticky top-0 z-20 px-3 pt-3 sm:px-5 lg:px-6">
+        <header
+          data-hidden={barHidden}
+          className={cn(
+            "sticky top-0 z-20 px-3 pt-3 transition-transform duration-[380ms] ease-[var(--ease-sheet)] sm:px-5 lg:px-6",
+            barHidden && "-translate-y-[130%]",
+          )}
+        >
           <div className="glass mx-auto flex h-14 max-w-[1240px] items-center gap-2 rounded-full pl-2 pr-2 sm:pl-3">
             <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setNavOpen(true)} aria-label="Open menu">
               <Menu className="h-5 w-5" />

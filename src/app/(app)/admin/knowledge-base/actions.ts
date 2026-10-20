@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
 import {
@@ -86,4 +87,14 @@ export async function deleteLessonAction(formData: FormData) {
   if (!isId(id)) return;
   await query("delete from kb_documents where id = $1", [id]);
   revalidatePath("/admin/knowledge-base", "layout");
+}
+
+/** Removes a whole module and all of its rules (for example a file added by mistake). */
+export async function deleteModuleAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!isId(id)) return;
+  await query("delete from playbook_modules where id = $1", [id]);
+  revalidatePath("/admin/knowledge-base", "layout");
+  redirect("/admin/knowledge-base");
 }
