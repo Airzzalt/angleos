@@ -33,6 +33,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `(app)/analyze` | Analyze Ad |
 | `(app)/swipe` | Swipe File |
 | `(app)/gethooked` | Get Hooked search |
+| `(app)/team` | Everyone: who is online right now and who is on the team (names only) |
 | `(app)/settings` | Settings (account, usage, account context, connections) |
 | `(app)/admin/knowledge-base`, `admin/prompts` | Admin only: course knowledge and prompts |
 | `(app)/admin/invites` | Admin only: create and revoke invite codes (fully working) |

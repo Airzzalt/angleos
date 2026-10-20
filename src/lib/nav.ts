@@ -13,6 +13,7 @@ import {
   Settings,
   Ticket,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ export const mainNav: NavItem[] = [
   { href: "/analyze", label: "Analyze Ad", icon: ScanSearch },
   { href: "/swipe", label: "Swipe File", icon: Bookmark },
   { href: "/gethooked", label: "Get Hooked Search", icon: Crosshair },
+  { href: "/team", label: "Team", icon: UsersRound },
 ];
 
 export const bottomNav: NavItem[] = [{ href: "/settings", label: "Settings", icon: Settings }];
