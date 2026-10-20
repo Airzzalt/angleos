@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword, verifyPassword, passwordProblem } from "../src/lib/password.ts";
+import { limitState, parseLimitInput } from "../src/lib/usage-limit.ts";
 import { generateInviteCode, hashInviteCode, normalizeInviteCode, inviteHint } from "../src/lib/invite-code.ts";
 
 test("password hashing round trip", async () => {
@@ -39,4 +40,20 @@ test("invite code matching ignores case, spaces and dashes", () => {
   assert.notEqual(hashInviteCode(code), hashInviteCode("ANGL-K7QM-2XRD-9TNG"));
   assert.equal(normalizeInviteCode("  a-b c "), "ABC");
   assert.equal(inviteHint(code), "9TNF");
+});
+
+test("usage limit: members stop at A$10, admins never do", () => {
+  assert.equal(limitState("member", 999, 1000).blocked, false);
+  assert.equal(limitState("member", 1000, 1000).blocked, true);
+  assert.equal(limitState("member", 450, 1000).remainingCents, 550);
+  assert.equal(limitState("admin", 999999, 1000).blocked, false);
+  assert.equal(limitState("member", 999999, null).unlimited, true);
+});
+
+test("usage limit input is read safely", () => {
+  assert.equal(parseLimitInput("10"), 1000);
+  assert.equal(parseLimitInput("A$7.50"), 750);
+  assert.equal(parseLimitInput("unlimited"), null);
+  assert.equal(parseLimitInput("-5"), undefined);
+  assert.equal(parseLimitInput("lots"), undefined);
 });

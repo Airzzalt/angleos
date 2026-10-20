@@ -12,6 +12,7 @@ import {
   ScrollText,
   Settings,
   Ticket,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ export const bottomNav: NavItem[] = [{ href: "/settings", label: "Settings", ico
 export const adminNav: NavItem[] = [
   { href: "/admin/knowledge-base", label: "Knowledge Base", icon: Library },
   { href: "/admin/prompts", label: "Prompts", icon: ScrollText },
+  { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/invites", label: "Invites", icon: Ticket },
 ];
 

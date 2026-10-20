@@ -11,6 +11,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ChatPanel } from "@/components/chat-panel";
+import { Heartbeat } from "@/components/presence";
 
 type User = { name: string; email: string; role: "admin" | "member" };
 
@@ -213,6 +214,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
         <main className="mx-auto w-full min-w-0 max-w-[1240px] px-4 pb-14 pt-8 sm:px-6 lg:px-6 lg:pt-10">{children}</main>
       </div>
 
+      <Heartbeat />
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} screen={screenName(pathname)} />
     </div>
   );

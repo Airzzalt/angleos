@@ -35,7 +35,9 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `(app)/gethooked` | Get Hooked search |
 | `(app)/settings` | Settings (account, usage, account context, connections) |
 | `(app)/admin/knowledge-base`, `admin/prompts` | Admin only: course knowledge and prompts |
-| `(app)/admin/invites` | Admin only: create and revoke invite codes (this one is fully working) |
+| `(app)/admin/invites` | Admin only: create and revoke invite codes (fully working) |
+| `(app)/admin/users` | Admin only: everyone with an account, who is online, promote or demote, switch off, set each person's AI limit (fully working) |
+| `api/presence` | The "I'm online" ping the open app sends every minute |
 | `api/health` | A "is it alive" check used by Render |
 | `globals.css` | The look: colours, dark and light themes |
 
@@ -48,6 +50,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `password.ts` | Password hashing |
 | `invite-code.ts` | Making and checking invite codes |
 | `rate-limit.ts` | Slows down password guessing |
+| `usage-limit.ts`, `usage.ts` | The A$10 AI limit rule (members A$10 in total, admins unlimited). Every AI feature checks this first |
 | `nav.ts` | The sidebar menu |
 | `placeholder.ts` | SAMPLE data used by screens that are not built yet |
 
