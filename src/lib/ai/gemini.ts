@@ -32,7 +32,7 @@ async function call(path: string, init: RequestInit & { timeoutMs?: number }): P
       const retryable = res.status === 429 || res.status >= 500;
       if (res.status === 400 && /api key/i.test(detail)) throw new AiError("Google rejected the AI key. Check it was copied correctly.");
       if (res.status === 401 || res.status === 403) throw new AiError("Google refused the AI key (wrong key, or billing is not switched on).");
-      throw new AiError(`The AI service returned an error (${res.status}).${retryable ? "" : " " + detail.replace(/AIza[0-9A-Za-z_-]+/g, "[key]")}`, retryable);
+      throw new AiError(`The AI service returned an error (${res.status}).${detail ? " Google says: " + detail.replace(/AIza[0-9A-Za-z_-]+/g, "[key]") : ""}`, retryable);
     }
     return await res.json();
   } catch (e) {
@@ -89,7 +89,7 @@ export async function generate(o: GenOpts): Promise<GenResult> {
     } catch (e) {
       last = e instanceof AiError ? e : new AiError("The AI call failed.", true);
       if (!last.retryable) break;
-      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      await new Promise((r) => setTimeout(r, 2500 * (attempt + 1)));
     }
   }
   throw last ?? new AiError("The AI call failed.");
