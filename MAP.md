@@ -85,3 +85,14 @@ Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-
 - `src/lib/uploads/ingest.ts`: checks, dedupes, enforces quotas and saves only the text.
 - `src/lib/projects.ts`, `src/lib/markets.ts`: project lookup with owner check, market list.
 - `db/migrations/005_projects.sql`: projects, project_files, project_context.
+
+## AI brief (Phase 2B)
+
+- `src/lib/ai/gemini.ts`: the only code that talks to Google (key from GEMINI_API_KEY, sent in a header; models come from settings). Has a fake AI used only by the in-memory test database.
+- `src/lib/ai/settings.ts`: AI settings (models, prices, caps, kill switch) stored in `ai_settings`.
+- `src/lib/ai/guard.ts`: every safety check: per-person credit, daily app-wide cap, one run at a time, runs-per-15-minutes limit, per-run cap, usage logging.
+- `src/lib/ai/cost.ts`: pure cost and batching maths (tested).
+- `src/lib/ai/brief.ts`: plan and estimate, the reader step (cached per file), the writer step, edit-preserving save.
+- `(app)/admin/ai`: admin page for models, prices, limits, test button, 24-hour spend.
+- `(app)/projects/brief-actions.ts`, `components/brief-panel.tsx`: Build brief button with cost confirm, progress, edit sections.
+- `db/migrations/006_ai_brief.sql`: ai_settings, ai_jobs, project_briefs, file summary columns.

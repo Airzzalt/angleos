@@ -7,6 +7,7 @@ import {
   ImageIcon,
   LayoutDashboard,
   Library,
+  Cpu,
   PenLine,
   ScanSearch,
   ScrollText,
@@ -37,6 +38,7 @@ export const bottomNav: NavItem[] = [{ href: "/settings", label: "Settings", ico
 export const adminNav: NavItem[] = [
   { href: "/admin/knowledge-base", label: "Knowledge Base", icon: Library },
   { href: "/admin/prompts", label: "Prompts", icon: ScrollText },
+  { href: "/admin/ai", label: "AI connection", icon: Cpu },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/invites", label: "Invites", icon: Ticket },
 ];

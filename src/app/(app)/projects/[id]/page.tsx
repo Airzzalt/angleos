@@ -10,6 +10,11 @@ import { EmptyState, PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContextForm, FileUploader } from "@/components/project-forms";
+import { BriefSections, BuildPanel, type PlanView } from "@/components/brief-panel";
+import { getAiConfig, readiness } from "@/lib/ai/settings";
+import { getBrief, type BriefRow, latestJob, planBrief, CATEGORY_LABEL } from "@/lib/ai/brief";
+import { usageFor } from "@/lib/usage";
+import { aud } from "@/lib/usage-limit";
 import { deleteFileAction, deleteProjectAction } from "../actions";
 
 const TABS = [
@@ -32,6 +37,7 @@ type FileRow = {
   source_zip: string | null;
   flags: { kind: string; note: string }[];
   created_at: string;
+  category: string | null;
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -50,13 +56,32 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
   const files = (
     await query<FileRow>(
-      `select id, file_name, file_type, word_count, char_count, source_zip, flags, created_at
+      `select id, file_name, file_type, word_count, char_count, source_zip, flags, created_at, category
          from project_files where project_id = $1 order by created_at desc, file_name`,
       [project.id],
     )
   ).rows;
   const totalChars = files.reduce((a, f) => a + f.char_count, 0);
   const totalWords = files.reduce((a, f) => a + f.word_count, 0);
+  let brief: BriefRow | null = null;
+  let planView: PlanView = null;
+  let blocked: string | null = null;
+  let jobView: { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number } | null = null;
+  let creditLine = "";
+  if (tab === "brief") {
+    brief = await getBrief(project.id);
+    const j = await latestJob(project.id);
+    jobView = j ? { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)) } : null;
+    const ready = readiness(await getAiConfig());
+    if (!ready.ok) blocked = `${ready.reason}${me.role === "admin" ? " Set it up on the AI connection page." : " Ask Ayaan."}`;
+    else {
+      const plan = await planBrief(project.id, ready);
+      if (plan.error) blocked = plan.error;
+      else planView = { estCents: plan.estCents, capCents: plan.capCents, files: plan.files, needRead: plan.needRead, willRead: plan.willRead, includeWrite: plan.includeWrite };
+      const u = await usageFor(me.id, me.role);
+      creditLine = u.unlimited ? "" : `You have ${aud(u.remainingCents ?? 0)} of credit left.`;
+    }
+  }
   const ctx = tab === "context" ? (await query<{ body: string }>("select body from project_context where project_id = $1", [project.id])).rows[0]?.body ?? "" : "";
   const canDelete = project.owner_id === me.id || me.role === "admin";
 
@@ -89,27 +114,57 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {tab === "brief" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-          <Card className="lg:col-span-3">
-            <CardHeader title="Product brief" description="The AI reads your research and writes the brief: offer, avatars, desires, awareness, mechanisms, proof and objections, each with its source file. You can edit every part." />
-            <div className="space-y-4 p-6">
-              <div className="flex items-start gap-3 rounded-2xl bg-surface-2 p-4">
-                <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
-                <div className="text-sm">
-                  <p className="font-medium">Brief writing is switched on in the next step</p>
-                  <p className="mt-1 text-muted">
-                    It needs the AI connection. {files.length > 0
-                      ? `Your ${files.length} file${files.length === 1 ? " is" : "s are"} ready (${totalWords.toLocaleString()} words).`
-                      : "Upload your research on the Files tab first."}
-                  </p>
-                </div>
+          <div className="space-y-6 lg:col-span-3">
+            <Card>
+              <CardHeader title="Product brief" description="The AI reads your research and writes the brief: offer, avatars, desires, awareness, mechanisms, proof and objections, each with its source file. You can edit every part, and your edits are never overwritten." />
+              <div className="space-y-4 p-6">
+                {brief ? (
+                  <>
+                    {brief.context_score !== null && (
+                      <div className="rounded-2xl bg-surface-2 p-4">
+                        <p className="text-sm font-medium">Context score: {brief.context_score} out of 100</p>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3" role="img" aria-label="Context score">
+                          <div className="h-full rounded-full bg-accent" style={{ width: `${brief.context_score}%` }} />
+                        </div>
+                        {brief.missing.length > 0 && (
+                          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted">
+                            {brief.missing.map((m, i) => (
+                              <li key={i}>{m}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                    <BriefSections projectId={project.id} sections={brief.sections} />
+                  </>
+                ) : (
+                  <div className="flex items-start gap-3 rounded-2xl bg-surface-2 p-4">
+                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                    <div className="text-sm">
+                      <p className="font-medium">No brief yet</p>
+                      <p className="mt-1 text-muted">
+                        {files.length > 0
+                          ? `Your ${files.length} file${files.length === 1 ? " is" : "s are"} ready (${totalWords.toLocaleString()} words). Build the brief from the box on the right.`
+                          : "Upload your research on the Files tab first."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {files.length === 0 && (
+                  <Link href={`/projects/${project.id}?tab=files`}>
+                    <Button variant="secondary" size="sm">Upload research</Button>
+                  </Link>
+                )}
               </div>
-              {files.length === 0 && (
-                <Link href={`/projects/${project.id}?tab=files`}>
-                  <Button variant="secondary" size="sm">Upload research</Button>
-                </Link>
-              )}
-            </div>
-          </Card>
+            </Card>
+          </div>
+          <div className="space-y-6 lg:col-span-2">
+            <Card>
+              <CardHeader title="Build the brief" />
+              <div className="p-6">
+                <BuildPanel projectId={project.id} plan={planView} blocked={blocked} job={jobView} hasBrief={!!brief} creditLine={creditLine} />
+              </div>
+            </Card>
           <Card className="lg:col-span-2">
             <CardHeader title="Details" />
             <dl className="space-y-3 p-6 text-sm">
@@ -126,6 +181,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               ))}
             </dl>
           </Card>
+          </div>
           {canDelete && (
             <details className="rounded-2xl border border-danger/30 px-5 py-4 lg:col-span-5">
               <summary className="cursor-pointer text-sm font-medium text-danger">Delete this project</summary>
@@ -170,6 +226,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                     <Link href={`/projects/${project.id}/files/${f.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
                       {f.file_name}
                     </Link>
+                    {f.category && <Badge tone="accent">{CATEGORY_LABEL[f.category] ?? f.category}</Badge>}
                     <Badge className="uppercase">{f.file_type}</Badge>
                     {f.flags.length > 0 && <Badge tone="warning">trimmed</Badge>}
                     <span className="text-xs text-muted">{f.word_count.toLocaleString()} words</span>
