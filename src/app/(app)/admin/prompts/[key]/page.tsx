@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TextEditor } from "@/components/text-editor";
-import { restorePromptAction, savePromptAction } from "../actions";
+import { deletePromptAction, restorePromptAction, savePromptAction } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ key: string }> }) {
   return { title: (await params).key };
@@ -71,6 +71,15 @@ export default async function PromptPage({ params }: { params: Promise<{ key: st
           ))}
         </ul>
       </Card>
+
+      <details className="mt-10 rounded-2xl border border-danger/30 px-5 py-4">
+        <summary className="cursor-pointer text-sm font-medium text-danger">Delete this prompt</summary>
+        <form action={deletePromptAction} className="mt-3 flex flex-wrap items-center gap-3">
+          <input type="hidden" name="id" value={p.id} />
+          <p className="min-w-0 flex-1 text-sm text-muted">This permanently removes the prompt and its history. To get it back you would add the file again.</p>
+          <Button type="submit" variant="danger" size="sm">Yes, delete it</Button>
+        </form>
+      </details>
     </>
   );
 }

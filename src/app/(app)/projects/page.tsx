@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { FolderOpen, Plus } from "lucide-react";
-import { sampleProjects } from "@/lib/placeholder";
-import { CardGridSkeleton, EmptyState, PageHeader, previewState } from "@/components/page";
+import { requireUser } from "@/lib/auth";
+import { query } from "@/lib/db";
+import { EmptyState, PageHeader } from "@/components/page";
 import { Badge, Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -15,36 +16,49 @@ const newButton = (
   </Link>
 );
 
-export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
-  const state = previewState(await searchParams);
+type Row = { id: string; name: string; niche: string; market: string; updated_at: string; files: string; words: string };
+
+export default async function ProjectsPage() {
+  const me = await requireUser();
+  const { rows } = await query<Row>(
+    `select p.id, p.name, p.niche, p.market, p.updated_at,
+            (select count(*) from project_files f where f.project_id = p.id) as files,
+            (select coalesce(sum(word_count),0) from project_files f where f.project_id = p.id) as words
+       from projects p
+      where p.owner_id = $1 or ($2::uuid is not null and p.workspace_id = $2::uuid)
+      order by p.updated_at desc`,
+    [me.id, me.workspaceId],
+  );
   return (
     <>
-      <PageHeader title="Projects" description="One project per product. Everything you make lives inside it." actions={newButton} />
-      {state === "loading" ? (
-        <CardGridSkeleton />
-      ) : state === "empty" ? (
+      <PageHeader preview={false} title="Projects" description="One project per product. Everything you make lives inside it." actions={newButton} />
+      {rows.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
           title="No projects yet"
-          description="Create a project and upload your research zip. AngleOS builds a product brief you can review and edit."
+          description="Create a project, then upload your research. AngleOS keeps the text so it can build a product brief you can review and edit."
           action={newButton}
         />
       ) : (
-        <div className="animate-fade-up grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sampleProjects.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`}>
-              <Card className="h-full p-5 transition hover:border-border-strong hover:bg-surface-2/50">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((p, i) => (
+            <Link key={p.id} href={`/projects/${p.id}`} className="reveal" style={{ "--i": i } as React.CSSProperties}>
+              <Card interactive className="h-full p-5">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-[17px] font-semibold leading-snug tracking-tight">{p.name}</h2>
-                  <Badge tone={p.score >= 7 ? "success" : p.score >= 5 ? "warning" : "danger"}>{p.score.toFixed(1)}</Badge>
+                  {Number(p.files) === 0 && <Badge tone="warning">No files yet</Badge>}
                 </div>
-                <p className="mt-1 text-sm text-muted">
-                  {p.niche} · {p.market}
-                </p>
+                <p className="mt-1 text-sm text-muted">{[p.niche, p.market].filter(Boolean).join(" · ") || "No niche set"}</p>
                 <div className="mt-5 flex items-center gap-4 text-sm text-muted">
-                  <span><b className="font-semibold text-fg">{p.scripts}</b> scripts</span>
-                  <span><b className="font-semibold text-fg">{p.angles}</b> angles</span>
-                  <span className="ml-auto text-xs">{p.updated}</span>
+                  <span>
+                    <b className="font-semibold text-fg">{p.files}</b> files
+                  </span>
+                  <span>
+                    <b className="font-semibold text-fg">{Number(p.words).toLocaleString()}</b> words
+                  </span>
+                  <span className="ml-auto text-xs">
+                    {new Date(p.updated_at).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                  </span>
                 </div>
               </Card>
             </Link>

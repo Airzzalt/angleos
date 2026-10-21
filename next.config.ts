@@ -11,7 +11,7 @@ const config: NextConfig = {
   poweredByHeader: false,
   // Only used for local test builds; Render uses the normal build.
   output: process.env.BUILD_STANDALONE ? "standalone" : undefined,
-  experimental: { serverActions: { bodySizeLimit: "3mb" } },
+  experimental: { serverActions: { bodySizeLimit: "26mb" } },
   serverExternalPackages: ["pg", "@electric-sql/pglite"],
   outputFileTracingIncludes: { "/*": ["./db/**/*"] },
   async headers() {

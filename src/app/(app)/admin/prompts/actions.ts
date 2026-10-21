@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { findPlaceholders } from "@/lib/kb/prompt-blanks";
@@ -41,4 +42,14 @@ export async function restorePromptAction(formData: FormData) {
   await query("update admin_prompts set body=original_body, placeholders=$2, version=$3, updated_at=now() where id=$1", [id, findPlaceholders(p.original_body), v]);
   await query("insert into admin_prompt_versions (owner_id, prompt_id, version_no, body, note) values ($1,$2,$3,$4,'Restored the original course text')", [me.id, id, v, p.original_body]);
   revalidatePath("/admin/prompts", "layout");
+}
+
+/** Removes a prompt and its history (for example a file added by mistake). */
+export async function deletePromptAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!isId(id)) return;
+  await query("delete from admin_prompts where id = $1", [id]);
+  revalidatePath("/admin/prompts", "layout");
+  redirect("/admin/prompts");
 }

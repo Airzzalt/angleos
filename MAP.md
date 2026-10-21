@@ -26,7 +26,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `(auth)/actions.ts` | The server code behind login, register and sign out |
 | `(app)/layout.tsx` | Wraps every signed-in screen (sidebar, top bar, AI chat) |
 | `(app)/page.tsx` | Dashboard |
-| `(app)/projects`, `projects/new`, `projects/[id]` | Projects list, new project, project detail (brief, context, score) |
+| `(app)/projects`, `projects/new`, `projects/[id]`, `projects/[id]/files/[fileId]` | Projects list, new project, project detail (tabs: brief, files, context, and later angles/scripts/analyses/swipe), plain-text file preview. `projects/actions.ts` holds create, upload, delete and save-context actions |
 | `(app)/angles` | Angle Generator |
 | `(app)/scripts` | Script Writer with the multi-select format picker |
 | `(app)/studio`, `studio/[style]` | Animated Ad Studio and its seven styles |
@@ -62,7 +62,7 @@ A reference for where everything lives. Updated whenever files are added. The pl
 | `kb/store.ts` | Saves imports to the database and does the keyword search |
 
 ## `src/components/`
-Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-form.tsx`, `script-writer.tsx`, `static-builder.tsx`, `analyze-ad.tsx`, `project-tabs.tsx`, `invite-form.tsx`, `theme-toggle.tsx`, `logo.tsx`, `page.tsx` (page headers, empty and loading states), and `ui/` (buttons, inputs, cards).
+Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-form.tsx`, `script-writer.tsx`, `static-builder.tsx`, `analyze-ad.tsx`, `project-forms.tsx` (new project, context, file uploader), `invite-form.tsx`, `theme-toggle.tsx`, `logo.tsx`, `page.tsx` (page headers, empty and loading states), and `ui/` (buttons, inputs, cards).
 
 ## Status by phase
 | Phase | Status |
@@ -76,3 +76,12 @@ Reusable pieces: `app-shell.tsx` (sidebar and top bar), `chat-panel.tsx`, `auth-
 | 5 Swipe File and Analyze Ad | Not started |
 | 5b Animated Ad Studio and Static Ads | Not started |
 | 6 Get Hooked | Not started |
+
+
+## Uploads and projects (Phase 2A)
+
+- `src/lib/uploads/limits.ts`: every size, count and speed limit in one place.
+- `src/lib/uploads/extract.ts`: safe reading of zips (streamed, stops on real bytes), PDF, DOCX, text. Pure, tested.
+- `src/lib/uploads/ingest.ts`: checks, dedupes, enforces quotas and saves only the text.
+- `src/lib/projects.ts`, `src/lib/markets.ts`: project lookup with owner check, market list.
+- `db/migrations/005_projects.sql`: projects, project_files, project_context.

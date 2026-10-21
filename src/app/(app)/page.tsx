@@ -135,7 +135,7 @@ export default async function DashboardPage() {
             {sampleProjects.slice(0, 4).map((p) => (
               <li key={p.id}>
                 <Link
-                  href={`/projects/${p.id}`}
+                  href="/projects"
                   className="group flex min-h-[64px] items-center gap-3.5 rounded-2xl px-3 py-2.5 transition-[background-color,transform] duration-200 hover:bg-surface-2 active:scale-[0.985]"
                 >
                   <ScoreRing score={p.score} />
@@ -175,7 +175,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              href={`/projects/${weakest.id}`}
+              href="/projects"
               className="inline-flex h-11 items-center rounded-full bg-white px-5 text-[15px] font-medium text-[#16161a] transition-transform duration-200 hover:scale-[1.03] active:scale-[0.96]"
             >
               Open project
