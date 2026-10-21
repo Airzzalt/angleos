@@ -74,6 +74,42 @@ export async function uploadFileAction(formData: FormData): Promise<IngestResult
   }
 }
 
+/** Several already-unpacked files per call. The browser opens zips itself, so the server never receives a big zip. */
+export async function uploadBatchAction(formData: FormData): Promise<IngestResult> {
+  const me = await requireUser();
+  const fail = (message: string): IngestResult => ({ ok: false, message, added: 0, duplicates: 0, skipped: [] });
+  const project = await getProject(me, String(formData.get("projectId") ?? ""));
+  if (!project) return fail("That project wasn't found.");
+  const files = formData.getAll("file").filter((f): f is File => f instanceof File);
+  if (!files.length) return fail("No files received.");
+  if (files.length > LIMITS.batchMaxFiles) return fail("Too many files in one go.");
+  if (files.reduce((n, f) => n + f.size, 0) > LIMITS.batchMaxBytes) return fail("That batch is too big.");
+
+  const max = me.role === "admin" ? LIMITS.uploadsPer15Min.admin : LIMITS.uploadsPer15Min.member;
+  if (await isLimited("upload", [{ key: me.id, max }])) return fail("You're uploading too quickly. Wait a few minutes and try again.");
+  await recordFailure("upload", [me.id]);
+
+  const total: IngestResult = { ok: true, message: "", added: 0, duplicates: 0, skipped: [] };
+  for (const f of files) {
+    if (f.name.toLowerCase().endsWith(".zip")) {
+      total.skipped.push({ name: f.name, reason: "zip inside a zip is not opened" });
+      continue;
+    }
+    try {
+      const r = await ingestUpload(me, project.id, f.name, new Uint8Array(await f.arrayBuffer()));
+      total.added += r.added;
+      total.duplicates += r.duplicates;
+      total.skipped.push(...r.skipped);
+      if (!r.ok && r.message && !r.skipped.length) total.skipped.push({ name: f.name, reason: r.message.replace(/^[^:]*:\s*/, "") });
+    } catch (e) {
+      console.error("batch upload failed", e);
+      total.skipped.push({ name: f.name, reason: "something went wrong while saving it" });
+    }
+  }
+  revalidatePath(`/projects/${project.id}`);
+  return total;
+}
+
 export async function deleteFileAction(formData: FormData) {
   const me = await requireUser();
   const projectId = String(formData.get("projectId") ?? "");

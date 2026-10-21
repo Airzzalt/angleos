@@ -13,12 +13,18 @@ export const LIMITS = {
   maxRatio: 200,
   maxPdfPages: 300,
   maxCharsPerFile: 800_000,
-  maxCharsPerProject: 3_000_000,
-  maxCharsPerMember: 15_000_000,
-  maxFilesPerProject: 300,
+  maxCharsPerProject: 10_000_000,
+  maxCharsPerMember: 40_000_000,
+  maxFilesPerProject: 1500,
   maxProjectsPerMember: 30,
   /** Upload requests per 15 minutes. */
-  uploadsPer15Min: { member: 30, admin: 120 },
+  uploadsPer15Min: { member: 60, admin: 240 },
+  /** The browser unpacks zips and sends files in batches: limits per batch request. */
+  batchMaxFiles: 40,
+  batchMaxBytes: 20 * MB,
+  /** Biggest zip the browser will open on someone's computer. */
+  maxBrowserZipBytes: 500 * MB,
+  maxBrowserZipEntries: 5000,
 } as const;
 
 export const ALLOWED_EXTENSIONS = ["pdf", "docx", "txt", "md", "markdown", "csv"] as const;

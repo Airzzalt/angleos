@@ -5,8 +5,10 @@ import { AlertCircle, Check, CheckCircle2, FileArchive, Loader2, Upload } from "
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
-import { createProjectAction, saveContextAction, uploadFileAction, type FormState } from "@/app/(app)/projects/actions";
+import { createProjectAction, saveContextAction, uploadBatchAction, type FormState } from "@/app/(app)/projects/actions";
 import { MARKETS } from "@/lib/markets";
+import { LIMITS } from "@/lib/uploads/limits";
+import { unpackZipInBrowser } from "@/lib/uploads/browser-unzip";
 
 export function NewProjectForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(createProjectAction, undefined);
@@ -94,37 +96,100 @@ export function ContextForm({ projectId, initial }: { projectId: string; initial
   );
 }
 
-type Row = { name: string; state: "wait" | "busy" | "ok" | "bad"; message?: string; skipped?: { name: string; reason: string }[] };
-const MAX_MB = 25;
+type Row = { name: string; state: "busy" | "ok" | "bad"; message: string; skipped?: { name: string; reason: string }[] };
+type Item = { file: File; label: string };
 
 export function FileUploader({ projectId }: { projectId: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
-  async function run(files: File[]) {
-    if (!files.length || busy) return;
+  async function run(picked: File[]) {
+    if (!picked.length || busy) return;
     setBusy(true);
-    setRows(files.map((f) => ({ name: f.name, state: "wait" })));
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const set = (patch: Partial<Row>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-      if (f.size > MAX_MB * 1024 * 1024) {
-        set({ state: "bad", message: `${f.name}: too large (over ${MAX_MB} MB). Split it into smaller zips.` });
-        continue;
-      }
-      set({ state: "busy" });
-      const fd = new FormData();
-      fd.set("projectId", projectId);
-      fd.set("file", f);
-      try {
-        const res = await uploadFileAction(fd);
-        set({ state: res.ok ? "ok" : "bad", message: res.message, skipped: res.skipped });
-      } catch {
-        set({ state: "bad", message: `${f.name}: the upload failed, try again` });
+    setProgress(null);
+    const rowsNow: Row[] = [];
+    const push = (r: Row) => {
+      rowsNow.push(r);
+      setRows([...rowsNow]);
+    };
+    const items: Item[] = [];
+    const skipped: { name: string; reason: string }[] = [];
+
+    // 1. Open zips here in the browser; take loose files as they are.
+    for (const f of picked) {
+      if (f.name.toLowerCase().endsWith(".zip")) {
+        push({ name: f.name, state: "busy", message: `Opening ${f.name}…` });
+        const idx = rowsNow.length - 1;
+        try {
+          const u = await unpackZipInBrowser(f);
+          items.push(...u.files.map((file) => ({ file, label: `${f.name}/${file.name}` })));
+          skipped.push(...u.skipped);
+          rowsNow[idx] = { name: f.name, state: "ok", message: `${f.name}: found ${u.files.length} readable file${u.files.length === 1 ? "" : "s"}` };
+        } catch (e) {
+          rowsNow[idx] = { name: f.name, state: "bad", message: e instanceof Error ? e.message : `${f.name}: this zip couldn't be opened. It may be damaged.` };
+        }
+        setRows([...rowsNow]);
+      } else if (f.size > LIMITS.maxFileBytes) {
+        skipped.push({ name: f.name, reason: "file too large" });
+      } else {
+        items.push({ file: f, label: f.name });
       }
     }
+
+    // 2. Send them in small batches. The server checks every file again.
+    let added = 0;
+    let dupes = 0;
+    const serverSkipped: { name: string; reason: string }[] = [];
+    let failure = "";
+    if (items.length) {
+      push({ name: "upload", state: "busy", message: `Sending ${items.length} files…` });
+      const idx = rowsNow.length - 1;
+      setProgress({ done: 0, total: items.length });
+      let i = 0;
+      while (i < items.length && !failure) {
+        const batch: Item[] = [];
+        let bytes = 0;
+        while (i < items.length && batch.length < LIMITS.batchMaxFiles && bytes + items[i].file.size <= LIMITS.batchMaxBytes) {
+          bytes += items[i].file.size;
+          batch.push(items[i++]);
+        }
+        if (!batch.length) {
+          serverSkipped.push({ name: items[i].label, reason: "file too large" });
+          i++;
+          continue;
+        }
+        const fd = new FormData();
+        fd.set("projectId", projectId);
+        for (const it of batch) fd.append("file", it.file, it.file.name);
+        try {
+          const res = await uploadBatchAction(fd);
+          added += res.added;
+          dupes += res.duplicates;
+          serverSkipped.push(...res.skipped);
+          if (!res.ok) failure = res.message;
+        } catch {
+          failure = "The upload failed. Check your connection and try again.";
+        }
+        setProgress({ done: i, total: items.length });
+      }
+      const parts = [`${added} file${added === 1 ? "" : "s"} added`];
+      if (dupes) parts.push(`${dupes} already there`);
+      const allSkipped = [...skipped, ...serverSkipped];
+      if (allSkipped.length) parts.push(`${allSkipped.length} skipped`);
+      rowsNow[idx] = {
+        name: "upload",
+        state: failure ? "bad" : "ok",
+        message: failure ? `${parts.join(", ")}. Stopped: ${failure}` : parts.join(", "),
+        skipped: allSkipped,
+      };
+    } else if (skipped.length) {
+      push({ name: "skipped", state: "bad", message: `Nothing readable. ${skipped.length} skipped`, skipped });
+    }
+    setRows([...rowsNow]);
+    setProgress(null);
     setBusy(false);
     if (input.current) input.current.value = "";
   }
@@ -152,7 +217,7 @@ export function FileUploader({ projectId }: { projectId: string }) {
         </span>
         <p className="font-medium">Drop your research here</p>
         <p className="mt-1 max-w-md text-sm text-muted">
-          A .zip, or loose PDF, DOCX, TXT, MD and CSV files. Up to {MAX_MB} MB at a time. Only the text is kept; the original files are not stored.
+          A .zip (opened right here on your computer, so big ones are fine) or loose PDF, DOCX, TXT, MD and CSV files. Only the text is kept; the original files are not stored.
         </p>
         <input
           ref={input}
@@ -165,14 +230,14 @@ export function FileUploader({ projectId }: { projectId: string }) {
         />
         <Button variant="secondary" size="sm" className="mt-4" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          {busy ? "Reading files…" : "Choose files"}
+          {busy ? (progress ? `Saving ${progress.done} of ${progress.total}…` : "Reading files…") : "Choose files"}
         </Button>
       </div>
 
       {rows.length > 0 && (
         <ul className="space-y-1.5" aria-live="polite">
-          {rows.map((r) => (
-            <li key={r.name} className="pop-in rounded-xl bg-surface-2 px-3 py-2 text-sm">
+          {rows.map((r, n) => (
+            <li key={n} className="pop-in rounded-xl bg-surface-2 px-3 py-2 text-sm">
               <div className="flex items-start gap-2.5">
                 {r.state === "ok" ? (
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
