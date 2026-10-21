@@ -103,7 +103,7 @@ export function BuildPanel({ projectId, plan, blocked, job, hasBrief, creditLine
             </div>
           ) : (
             <Button onClick={() => setConfirming(true)}>
-              <Sparkles className="h-4 w-4" /> {hasBrief ? (plan.includeWrite ? "Rebuild the brief" : "Read more files") : plan.includeWrite ? "Build the brief" : "Start reading files"}
+              <Sparkles className="h-4 w-4" /> {hasBrief ? (plan.includeWrite ? "Rebuild the brief" : "Read more files") : plan.needRead > 0 && plan.needRead < plan.files ? "Continue where it left off" : plan.includeWrite ? "Build the brief" : "Start reading files"}
             </Button>
           )}
         </>
