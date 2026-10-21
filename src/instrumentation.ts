@@ -6,6 +6,7 @@ export async function register() {
     const { runMigrations } = await import("./lib/migrate");
     await runMigrations(await getDb());
     console.log("[angleos] database ready");
+    (await import("./lib/ai/resume")).startResumer();
   } catch (err) {
     console.error("[angleos] database setup failed:", err instanceof Error ? err.message : err);
   }

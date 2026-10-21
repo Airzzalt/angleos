@@ -278,7 +278,6 @@ export async function getBrief(projectId: string): Promise<BriefRow | null> {
 
 export async function latestJob(projectId: string) {
   // A run that stopped reporting in is treated as interrupted.
-  await query("update ai_jobs set status = 'failed', error = 'This run was interrupted (the server restarted). Run it again; files already read are not charged twice.', finished_at = now() where status in ('queued','running') and heartbeat_at < now() - interval '3 minutes'");
   const { rows } = await query<{ id: string; status: string; done_steps: number; total_steps: number; message: string; error: string | null; spent_cents: string; est_cost_cents: number; created_at: string }>(
     "select id, status, done_steps, total_steps, message, error, spent_cents, est_cost_cents, created_at from ai_jobs where project_id = $1 and kind = 'brief' order by created_at desc limit 1",
     [projectId],
