@@ -128,6 +128,6 @@ function fakeXai(o: GenOpts): GenResult {
     sources: names,
     rules,
   }));
-  const text = JSON.stringify({ angles, missing: ["Competitor prices"], note: "Fake run" });
+  const text = JSON.stringify({ coverage: [{ theme: "Fake theme one", files: 2, status: "covered", note: "Angle 1" }, { theme: "Fake theme two", files: 1, status: "skipped", note: "Not for this product" }], angles, missing: ["Competitor prices"], note: "Fake run" });
   return { text, inputTokens, outputTokens: Math.ceil(text.length / 4) };
 }

@@ -86,16 +86,20 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     }
   }
   let angleViews: AngleView[] = [];
-  let angleJob: { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number } | null = null;
+  let angleJob: { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number; seconds?: number } | null = null;
   let angleMissing: string[] = [];
   let angleNote = "";
+  let angleCoverage: { theme: string; files: number; status: string; note: string }[] = [];
+  let hasBriefForAngles = false;
   if (tab === "angles") {
     angleViews = (await getAngles(project.id)).map((r) => ({ id: r.id, favourite: r.favourite, edited: r.edited, runId: r.job_id ?? "none", runAt: String(r.run_at), data: r.data }));
+    hasBriefForAngles = ((await query<{ n: number }>("select count(*)::int as n from project_briefs where project_id = $1", [project.id])).rows[0]?.n ?? 0) > 0;
     const j = await latestAngleJob(project.id);
     if (j) {
-      angleJob = { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)) };
+      angleJob = { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)), seconds: j.secs };
       angleMissing = Array.isArray(j.trace?.missing) ? j.trace.missing : [];
       angleNote = typeof j.trace?.note === "string" ? j.trace.note : "";
+      angleCoverage = Array.isArray(j.trace?.coverage) ? j.trace.coverage : [];
     }
   }
   const ctx = tab === "context" ? (await query<{ body: string }>("select body from project_context where project_id = $1", [project.id])).rows[0]?.body ?? "" : "";
@@ -294,7 +298,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               )}
             </div>
           </Card>
-          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} />
+          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} coverage={angleCoverage} productLine={project.description ?? ""} showProductLine={!hasBriefForAngles} />
         </div>
       )}
       {tab === "scripts" && <EmptyState icon={PenLine} title="No scripts yet" description="Scripts for this product will be saved here. The Script Writer is built in Phase 4." />}

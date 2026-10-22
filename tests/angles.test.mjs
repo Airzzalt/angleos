@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normaliseAngles, canonicalAwareness, applyEdit } from "../src/lib/ai/angles-shape.ts";
+import { normaliseAngles, normaliseCoverage, canonicalAwareness, applyEdit } from "../src/lib/ai/angles-shape.ts";
 
 const ctx = { files: new Set(["reddit.txt", "reviews.md"]), rules: new Set(["ANGLE-01", "HOOK-04"]), max: 3 };
 
@@ -50,4 +50,19 @@ test("editing changes only the angle line and hooks", () => {
   assert.deepEqual(b.hooks, ["x", "y", "z"]);
   assert.equal(b.desire, "keep me");
   assert.equal(applyEdit(a, { angle: "", hooks: "" }).angle, "Old");
+});
+
+test("coverage themes are cleaned, capped at the file count and sorted by how common they are", () => {
+  const c = normaliseCoverage([
+    { theme: " Surgery ", files: 5, status: "covered", note: "Angle 2" },
+    { theme: "Adults with neck pain", files: 99, status: "Skipped - wrong buyer" },
+    { theme: "", files: 3 },
+    "junk",
+  ], 30);
+  assert.equal(c.length, 2);
+  assert.equal(c[0].theme, "Adults with neck pain");
+  assert.equal(c[0].files, 30);
+  assert.equal(c[0].status, "skipped");
+  assert.equal(c[1].theme, "Surgery");
+  assert.deepEqual(normaliseCoverage("nope", 10), []);
 });

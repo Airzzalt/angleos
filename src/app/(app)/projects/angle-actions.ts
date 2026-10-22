@@ -56,7 +56,7 @@ export async function anglesJobStatusAction(projectId: string) {
   if (!project) return null;
   const j = await latestAngleJob(project.id);
   if (!j) return null;
-  return { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)) };
+  return { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)), seconds: j.secs };
 }
 
 export async function favouriteAngleAction(projectId: string, id: string) {
@@ -74,6 +74,17 @@ export async function deleteAngleAction(projectId: string, id: string) {
   await query("delete from project_angles where id = $1 and project_id = $2", [id, project.id]);
   revalidatePath(`/projects/${project.id}`);
   revalidatePath("/angles");
+}
+
+export async function saveProductLineAction(projectId: string, text: string): Promise<{ ok?: boolean; error?: string }> {
+  const me = await requireUser();
+  const project = await getProject(me, projectId);
+  if (!project) return { error: "That project wasn't found." };
+  const line = clean(text, 600);
+  if (line.length < 15) return { error: "Say a bit more: what you are selling and who it is for (at least a short sentence)." };
+  await query("update projects set description = $2, updated_at = now() where id = $1", [project.id, line]);
+  revalidatePath(`/projects/${project.id}`);
+  return { ok: true };
 }
 
 export async function deleteRunAction(projectId: string, runId: string) {
@@ -107,6 +118,7 @@ export async function createQuickProjectAction(_p: AngleState, formData: FormDat
   const name = clean(formData.get("name"), 120);
   const about = clean(formData.get("about"), 2000);
   if (name.length < 2) return { error: "Give the product a name (at least 2 characters)." };
+  if (about.length < 15) return { error: "Say what you are selling and who it is for (one line is enough). The angles are built around it." };
   if (me.role !== "admin") {
     const n = await query<{ n: number }>("select count(*)::int as n from projects where owner_id = $1", [me.id]);
     if ((n.rows[0]?.n ?? 0) >= LIMITS.maxProjectsPerMember) return { error: `You've reached the limit of ${LIMITS.maxProjectsPerMember} projects. Delete one you no longer need.` };

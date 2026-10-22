@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
-import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
+import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
 
-type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number } | null;
+type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number; seconds?: number } | null;
 export type AngleView = {
   id: string;
   favourite: boolean;
@@ -32,8 +32,40 @@ function groupByRun(list: AngleView[]) {
   return groups;
 }
 
-export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string }) {
+const dur = (sec = 0) => (sec >= 60 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec} s`);
+
+type Coverage = { theme: string; files: number; status: string; note: string };
+
+function ProductLine({ projectId, initial, onSaved }: { projectId: string; initial: string; onSaved: () => void }) {
+  const [text, setText] = useState(initial);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <div className="space-y-2">
+      <label htmlFor="product-line" className="text-sm font-medium">What are you selling, and who is it for?</label>
+      <textarea
+        id="product-line"
+        value={text}
+        onChange={(e) => { setText(e.target.value); setMsg(null); }}
+        rows={2}
+        maxLength={600}
+        placeholder="e.g. Kids contour pillow, ages 2+, sized by age"
+        className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button size="sm" variant="secondary" disabled={pending} onClick={() => start(async () => { const r = await saveProductLineAction(projectId, text); setMsg(r.ok ? { ok: true, text: "Saved" } : { ok: false, text: r.error ?? "Could not save." }); if (r.ok) onSaved(); })}>
+          {pending ? "Saving…" : "Save product line"}
+        </Button>
+        {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-success" : "text-danger"}`}>{msg.text}</span>}
+      </div>
+      <p className="text-xs text-muted">The product decides what is sold. Your research decides who buys and why.</p>
+    </div>
+  );
+}
+
+export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean }) {
   const router = useRouter();
+  const [lineTick, setLineTick] = useState(0);
   const [live, setLive] = useState<Job>(job);
   const [count, setCount] = useState(10);
   const [mode, setMode] = useState<"broad" | "deep">("broad");
@@ -61,7 +93,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
       setBlocked(r.blocked ?? null);
       setCreditLine(r.creditLine ?? "");
     });
-  }, [projectId, count, mode, running, angles.length, fileCount]);
+  }, [projectId, count, mode, running, angles.length, fileCount, lineTick]);
 
   useEffect(() => {
     if (!running) return;
@@ -103,6 +135,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
             <h2 className="text-[17px] font-semibold tracking-tight">Generate angles</h2>
             <p className="mt-0.5 text-sm text-muted">Uses your research files and notes (a brief helps but is not needed), your Evolve angle method and the course rules in the knowledge base.</p>
           </div>
+          {showProductLine && <ProductLine projectId={projectId} initial={productLine} onSaved={() => { setLineTick((t) => t + 1); router.refresh(); }} />}
 
           {running && live ? (
             <div className="space-y-3" aria-live="polite">
@@ -113,7 +146,8 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
                 <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${Math.max(5, live.total ? Math.round((live.done / live.total) * 100) : 5)}%` }} />
               </div>
               <p className="text-sm text-muted">{live.message}</p>
-              <p className="text-xs text-muted">Spent so far: {aud(live.spentCents)}. You can leave this page; it keeps going.</p>
+              <p className="text-xs text-muted">Running for {dur(live.seconds)} · spent so far {aud(live.spentCents)}. A big set of research can take several minutes. You can leave this page; it keeps going.</p>
+              {angles.length > 0 && <p className="rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">The angles listed further down are from earlier runs. The new set appears at the top when this finishes.</p>}
               <Button variant="secondary" size="sm" disabled={pending} onClick={() => start(async () => { await cancelJobAction(projectId); const j = await anglesJobStatusAction(projectId); if (j) setLive(j); })}>
                 <X className="h-4 w-4" /> Stop
               </Button>
@@ -126,9 +160,14 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
                 </p>
               )}
               {live?.status === "done" && live.message && (
-                <p role="status" className="flex items-start gap-2 rounded-xl bg-success/10 px-3 py-2 text-sm text-success">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> {live.message} (cost {aud(live.spentCents)})
-                </p>
+                <div role="status" className="rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
+                  <p className="flex items-start gap-2 font-medium"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> Completed</p>
+                  <p className="mt-1 break-words pl-6">{live.message}</p>
+                  <p className="mt-1 pl-6 text-xs opacity-80">Took {dur(live.seconds)} · cost {aud(live.spentCents)}. Your new set is at the top of the list below.</p>
+                </div>
+              )}
+              {live?.status === "cancelled" && (
+                <p role="status" className="rounded-xl bg-surface-2 px-3 py-2 text-sm text-muted">The last run was stopped{live.spentCents ? ` (cost ${aud(live.spentCents)})` : ""}. Any angles it had already saved are in the list below.</p>
               )}
               {like && (
                 <div className="flex items-start justify-between gap-3 rounded-xl bg-accent-soft px-3 py-2 text-sm">
@@ -204,6 +243,23 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
           )}
         </div>
       </Card>
+
+      {coverage.length > 0 && angles.length > 0 && (
+        <Card className="p-5">
+          <p className="text-sm font-medium">What the research is about (latest run)</p>
+          <p className="mt-1 text-xs text-muted">The main themes in your files, how many files mention each, and whether an angle covers it.</p>
+          <ul className="mt-3 divide-y divide-border text-sm">
+            {coverage.map((c, i) => (
+              <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+                <span className="min-w-0 flex-1 break-words font-medium">{c.theme}</span>
+                <span className="text-xs text-muted">{c.files} of {fileCount} files</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.status === "skipped" ? "bg-surface-3 text-muted" : "bg-accent-soft text-accent"}`}>{c.status === "skipped" ? "Skipped" : "Covered"}</span>
+                {c.note && <span className="basis-full break-words text-xs text-muted">{c.note}</span>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {(missing.length > 0 || note) && angles.length > 0 && (
         <Card className="p-5">

@@ -20,6 +20,25 @@ export type Angle = {
 
 const clean = (s: unknown, max: number) => String(s ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").replace(/[ \t]+/g, " ").trim().slice(0, max);
 
+export type CoverageItem = { theme: string; files: number; status: "covered" | "skipped"; note: string };
+
+/** The "what themes are in the files" list the AI writes before the angles. Untrusted, so every part is cleaned. */
+export function normaliseCoverage(raw: unknown, totalFiles: number): CoverageItem[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  const out: CoverageItem[] = [];
+  for (const it of arr as Record<string, unknown>[]) {
+    if (!it || typeof it !== "object") continue;
+    const theme = clean(it.theme, 120);
+    if (!theme) continue;
+    const n = Math.round(Number(it.files));
+    const files = Number.isFinite(n) ? Math.max(0, Math.min(totalFiles || n, n)) : 0;
+    const status = String(it.status ?? "").toLowerCase().startsWith("skip") ? "skipped" : "covered";
+    out.push({ theme, files, status, note: clean(it.note, 200) });
+    if (out.length >= 12) break;
+  }
+  return out.sort((a, b) => b.files - a.files);
+}
+
 export function canonicalAwareness(v: unknown): string {
   const t = String(v ?? "").toLowerCase();
   if (t.includes("unaware")) return "Unaware";
@@ -38,8 +57,8 @@ function list(v: unknown, max: number, len: number): string[] {
     .slice(0, max);
 }
 
-export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: Set<string>; max: number }): { angles: Angle[]; missing: string[]; note: string } {
-  const root = (raw && typeof raw === "object" ? raw : {}) as { angles?: unknown; missing?: unknown; note?: unknown };
+export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: Set<string>; max: number; totalFiles?: number }): { angles: Angle[]; missing: string[]; note: string; coverage: CoverageItem[] } {
+  const root = (raw && typeof raw === "object" ? raw : {}) as { angles?: unknown; missing?: unknown; note?: unknown; coverage?: unknown };
   const items = Array.isArray(root.angles) ? root.angles : Array.isArray(raw) ? (raw as unknown[]) : [];
   const seen = new Set<string>();
   const angles: Angle[] = [];
@@ -66,7 +85,7 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
     });
     if (angles.length >= ctx.max) break;
   }
-  return { angles, missing: list(root.missing, 8, 200), note: clean(root.note, 400) };
+  return { angles, missing: list(root.missing, 8, 200), note: clean(root.note, 400), coverage: normaliseCoverage(root.coverage, ctx.totalFiles ?? 0) };
 }
 
 /** What the person typed when editing an angle: only the one-line angle and the hooks can change. */

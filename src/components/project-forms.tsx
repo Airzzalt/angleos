@@ -281,8 +281,8 @@ export function QuickStartForm() {
         <Input id="quick-name" name="name" required minLength={2} maxLength={120} placeholder="e.g. Aurora Sleep Mask" />
       </div>
       <div>
-        <Label htmlFor="quick-about">What is it, and who is it for? (optional)</Label>
-        <Textarea id="quick-about" name="about" maxLength={2000} rows={4} placeholder="A line or two is fine. You add your research files on the next screen." />
+        <Label htmlFor="quick-about">What are you selling, and who is it for?</Label>
+        <Textarea id="quick-about" name="about" required minLength={15} maxLength={2000} rows={4} placeholder="e.g. Kids contour pillow, ages 2+, sized by age. One line is fine. You add your research files on the next screen." />
       </div>
       {state?.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
       <Button type="submit" disabled={pending}>{pending ? "Starting…" : "Start quick angles"}</Button>
