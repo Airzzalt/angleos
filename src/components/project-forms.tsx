@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import { createProjectAction, saveContextAction, uploadBatchAction, type FormState } from "@/app/(app)/projects/actions";
+import { createQuickProjectAction, type AngleState } from "@/app/(app)/projects/angle-actions";
 import { MARKETS } from "@/lib/markets";
 import { LIMITS } from "@/lib/uploads/limits";
 import { unpackZipInBrowser } from "@/lib/uploads/browser-unzip";
@@ -268,5 +269,23 @@ export function FileUploader({ projectId }: { projectId: string }) {
         </ul>
       )}
     </div>
+  );
+}
+
+export function QuickStartForm() {
+  const [state, action, pending] = useActionState<AngleState, FormData>(createQuickProjectAction, undefined);
+  return (
+    <form action={action} className="space-y-4">
+      <div>
+        <Label htmlFor="quick-name">Product name</Label>
+        <Input id="quick-name" name="name" required minLength={2} maxLength={120} placeholder="e.g. Aurora Sleep Mask" />
+      </div>
+      <div>
+        <Label htmlFor="quick-about">What is it, and who is it for? (optional)</Label>
+        <Textarea id="quick-about" name="about" maxLength={2000} rows={4} placeholder="A line or two is fine. You add your research files on the next screen." />
+      </div>
+      {state?.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+      <Button type="submit" disabled={pending}>{pending ? "Starting…" : "Start quick angles"}</Button>
+    </form>
   );
 }

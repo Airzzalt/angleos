@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Compass, FileText, PenLine, ScanSearch, Bookmark, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, PenLine, ScanSearch, Bookmark, Sparkles, Trash2 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { getProject } from "@/lib/projects";
@@ -11,11 +11,14 @@ import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContextForm, FileUploader } from "@/components/project-forms";
 import { BriefSections, BuildPanel, type PlanView } from "@/components/brief-panel";
+import { AnglesWorkspace, type AngleView } from "@/components/angles-panel";
+import { getAngles, latestAngleJob } from "@/lib/ai/angles";
 import { getAiConfig, readiness } from "@/lib/ai/settings";
 import { getBrief, type BriefRow, latestJob, planBrief, CATEGORY_LABEL } from "@/lib/ai/brief";
 import { usageFor } from "@/lib/usage";
 import { aud } from "@/lib/usage-limit";
 import { deleteFileAction, deleteProjectAction } from "../actions";
+import { makeFullProjectAction } from "../angle-actions";
 
 const TABS = [
   { key: "brief", label: "Brief" },
@@ -52,7 +55,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const project = await getProject(me, id);
   if (!project) notFound();
   const sp = await searchParams;
-  const tab: TabKey = TABS.some((t) => t.key === sp.tab) ? (sp.tab as TabKey) : "brief";
+  const tab: TabKey = TABS.some((t) => t.key === sp.tab) ? (sp.tab as TabKey) : project.kind === "quick" ? "angles" : "brief";
 
   const files = (
     await query<FileRow>(
@@ -82,6 +85,19 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       creditLine = u.unlimited ? "" : `You have ${aud(u.remainingCents ?? 0)} of credit left.`;
     }
   }
+  let angleViews: AngleView[] = [];
+  let angleJob: { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number } | null = null;
+  let angleMissing: string[] = [];
+  let angleNote = "";
+  if (tab === "angles") {
+    angleViews = (await getAngles(project.id)).map((r) => ({ id: r.id, favourite: r.favourite, edited: r.edited, createdAt: r.created_at, data: r.data }));
+    const j = await latestAngleJob(project.id);
+    if (j) {
+      angleJob = { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)) };
+      angleMissing = Array.isArray(j.trace?.missing) ? j.trace.missing : [];
+      angleNote = typeof j.trace?.note === "string" ? j.trace.note : "";
+    }
+  }
   const ctx = tab === "context" ? (await query<{ body: string }>("select body from project_context where project_id = $1", [project.id])).rows[0]?.body ?? "" : "";
   const canDelete = project.owner_id === me.id || me.role === "admin";
 
@@ -91,6 +107,16 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         <ArrowLeft className="h-4 w-4" /> All projects
       </Link>
       <PageHeader preview={false} title={project.name} description={[project.niche, project.market].filter(Boolean).join(" · ") || undefined} />
+      {project.kind === "quick" && (
+        <div className="-mt-3 mb-5 flex flex-wrap items-center gap-3 text-sm">
+          <Badge tone="accent">Quick project</Badge>
+          <span className="text-muted">Made for fast angles. The brief is optional.</span>
+          <form action={makeFullProjectAction}>
+            <input type="hidden" name="projectId" value={project.id} />
+            <button type="submit" className="text-accent hover:underline">Make this a full project</button>
+          </form>
+        </div>
+      )}
 
       <div className="-mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="tablist" aria-label="Project sections">
         <div className="inline-flex gap-1 rounded-full border border-border bg-surface p-1 backdrop-blur-xl">
@@ -254,7 +280,23 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </Card>
       )}
 
-      {tab === "angles" && <EmptyState icon={Compass} title="No angles yet" description="Angles you generate for this product will be saved here. The Angle Generator is built in Phase 3." />}
+      {tab === "angles" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader
+              title="Research for the angles"
+              description={files.length ? `${files.length} file${files.length === 1 ? "" : "s"} · ${totalWords.toLocaleString()} words. Add more any time: loose files or a zip.` : "Drop in your research: loose files or a zip (avatar docs, reviews, Reddit threads, the product page). No research? Write the product and customer notes on the Context tab instead."}
+            />
+            <div className="space-y-3 p-6">
+              <FileUploader projectId={project.id} />
+              {files.length > 0 && (
+                <Link href={`/projects/${project.id}?tab=files`} className="inline-block text-sm text-accent hover:underline">See and remove files</Link>
+              )}
+            </div>
+          </Card>
+          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} />
+        </div>
+      )}
       {tab === "scripts" && <EmptyState icon={PenLine} title="No scripts yet" description="Scripts for this product will be saved here. The Script Writer is built in Phase 4." />}
       {tab === "analyses" && <EmptyState icon={ScanSearch} title="No analyses yet" description="Ad breakdowns linked to this product will appear here. Analyze Ad is built in Phase 5." />}
       {tab === "swipe" && <EmptyState icon={Bookmark} title="Nothing saved yet" description="Ads you link to this product will appear here. The Swipe File is built in Phase 5." />}

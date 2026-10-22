@@ -1,0 +1,318 @@
+"use client";
+
+import Link from "next/link";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, Check, CheckCircle2, Heart, Loader2, Pencil, Sparkles, Trash2, X, Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge, Card } from "@/components/ui/card";
+import { Input, Label, Select, Textarea } from "@/components/ui/field";
+import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
+import { anglesJobStatusAction, deleteAngleAction, estimateAnglesAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
+
+type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number } | null;
+export type AngleView = {
+  id: string;
+  favourite: boolean;
+  edited: boolean;
+  createdAt: string;
+  data: { sub_avatar: string; desire: string; angle: string; awareness: string; mechanism: string; hooks: string[]; evidence: string[]; test_type: string; risks: string[]; why: string; sources: string[]; rules: string[] };
+};
+
+const aud = (c: number) => `A$${(c / 100).toFixed(2)}`;
+
+export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string }) {
+  const router = useRouter();
+  const [live, setLive] = useState<Job>(job);
+  const [count, setCount] = useState(10);
+  const [mode, setMode] = useState<"broad" | "deep">("broad");
+  const [focus, setFocus] = useState("");
+  const [like, setLike] = useState<AngleView | null>(null);
+  const [plan, setPlan] = useState<PlanDto | null>(null);
+  const [blocked, setBlocked] = useState<string | null>(null);
+  const [creditLine, setCreditLine] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState("");
+  const [favOnly, setFavOnly] = useState(false);
+  const [pending, start] = useTransition();
+  const running = live && (live.status === "queued" || live.status === "running");
+  const wasRunning = useRef(!!running);
+  const stamp = useRef(0);
+  const top = useRef<HTMLDivElement>(null);
+
+  // The cost depends on how many angles are asked for, so ask the server again when that changes.
+  useEffect(() => {
+    if (running) return;
+    const my = ++stamp.current;
+    estimateAnglesAction(projectId, { count, mode, focus: "" }).then((r) => {
+      if (my !== stamp.current) return;
+      setPlan(r.plan ?? null);
+      setBlocked(r.blocked ?? null);
+      setCreditLine(r.creditLine ?? "");
+    });
+  }, [projectId, count, mode, running, angles.length, fileCount]);
+
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(async () => {
+      const j = await anglesJobStatusAction(projectId);
+      if (j) setLive(j);
+    }, 2500);
+    return () => clearInterval(t);
+  }, [running, projectId]);
+
+  useEffect(() => {
+    if (wasRunning.current && !running) router.refresh();
+    wasRunning.current = !!running;
+  }, [running, router]);
+
+  function go() {
+    if (!plan) return;
+    setError("");
+    start(async () => {
+      const res = await startAnglesAction(projectId, plan.estCents, { count, mode, focus, likeId: like?.id ?? null });
+      setConfirming(false);
+      if (res?.error) return setError(res.error);
+      setLike(null);
+      const j = await anglesJobStatusAction(projectId);
+      if (j) setLive(j);
+      // A very quick run can already be finished by now; then the "was running" change below never happens.
+      if (j && j.status !== "queued" && j.status !== "running") router.refresh();
+    });
+  }
+
+  const shown = favOnly ? angles.filter((a) => a.favourite) : angles;
+
+  return (
+    <div className="space-y-6">
+      <div ref={top} />
+      <Card>
+        <div className="space-y-5 p-6">
+          <div>
+            <h2 className="text-[17px] font-semibold tracking-tight">Generate angles</h2>
+            <p className="mt-0.5 text-sm text-muted">Uses your research files and notes (a brief helps but is not needed), your Evolve angle method and the course rules in the knowledge base.</p>
+          </div>
+
+          {running && live ? (
+            <div className="space-y-3" aria-live="polite">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Loader2 className="h-4 w-4 animate-spin text-accent" /> Working on it
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+                <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${Math.max(5, live.total ? Math.round((live.done / live.total) * 100) : 5)}%` }} />
+              </div>
+              <p className="text-sm text-muted">{live.message}</p>
+              <p className="text-xs text-muted">Spent so far: {aud(live.spentCents)}. You can leave this page; it keeps going.</p>
+              <Button variant="secondary" size="sm" disabled={pending} onClick={() => start(async () => { await cancelJobAction(projectId); const j = await anglesJobStatusAction(projectId); if (j) setLive(j); })}>
+                <X className="h-4 w-4" /> Stop
+              </Button>
+            </div>
+          ) : (
+            <>
+              {live?.status === "failed" && live.error && (
+                <p role="alert" className="flex items-start gap-2 rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {live.error}
+                </p>
+              )}
+              {live?.status === "done" && live.message && (
+                <p role="status" className="flex items-start gap-2 rounded-xl bg-success/10 px-3 py-2 text-sm text-success">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> {live.message} (cost {aud(live.spentCents)})
+                </p>
+              )}
+              {like && (
+                <div className="flex items-start justify-between gap-3 rounded-xl bg-accent-soft px-3 py-2 text-sm">
+                  <span className="min-w-0 break-words">Making more like: <b className="font-medium">{like.data.angle}</b></span>
+                  <button type="button" onClick={() => setLike(null)} className="shrink-0 text-xs text-accent hover:underline">Clear</button>
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="angle-count">How many angles</Label>
+                  <Select id="angle-count" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                  </Select>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="angle-mode">Approach</Label>
+                  <Select id="angle-mode" value={mode} onChange={(e) => setMode(e.target.value === "deep" ? "deep" : "broad")}>
+                    <option value="broad">Marksman: broad across sub-avatars</option>
+                    <option value="deep">Sniper: deep on one angle</option>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="angle-focus">Anything to focus on? (optional)</Label>
+                <Input id="angle-focus" value={focus} maxLength={600} onChange={(e) => setFocus(e.target.value)} placeholder="e.g. busy mums who sleep badly. No medical claims." />
+              </div>
+
+              {blocked ? (
+                <div className="space-y-3 rounded-2xl bg-surface-2 p-4 text-sm">
+                  <p className="text-muted">{blocked}</p>
+                  {blocked.startsWith("There is nothing") && (
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={`/projects/${projectId}?tab=files`}><Button variant="secondary" size="sm">Upload research</Button></Link>
+                      <Link href={`/projects/${projectId}?tab=context`}><Button variant="secondary" size="sm">Write the context</Button></Link>
+                    </div>
+                  )}
+                </div>
+              ) : plan ? (
+                <>
+                  <div className="rounded-2xl bg-surface-2 p-4 text-sm">
+                    {plan.thin && <p className="mb-2 rounded-xl bg-warning/10 px-3 py-2 text-warning">There is very little to work from, so these angles will be more generic. Adding research files makes them much sharper.</p>}
+                    <p>
+                      {plan.files === 0
+                        ? "No research files, so this will use the product notes only."
+                        : plan.needRead > 0
+                          ? `${plan.needRead} of ${plan.files} files still need reading first.`
+                          : `All ${plan.files} files are already read.`}{" "}
+                      {!plan.includeWrite && `This run reads ${plan.willRead} of them; run it again for the rest.`}
+                    </p>
+                    <p className="mt-2 text-lg font-semibold">About {aud(plan.estCents)}</p>
+                    <p className="text-xs text-muted">It will never spend more than {aud(plan.capCents)} on this run. {creditLine}</p>
+                  </div>
+                  {confirming ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button onClick={go} disabled={pending}>
+                        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Yes, run it for about {aud(plan.estCents)}
+                      </Button>
+                      <Button variant="ghost" onClick={() => setConfirming(false)} disabled={pending}>Not now</Button>
+                    </div>
+                  ) : (
+                    <Button onClick={() => setConfirming(true)}>
+                      <Sparkles className="h-4 w-4" /> {plan.includeWrite ? "Generate angles" : "Start reading files"}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted">Working out the cost…</p>
+              )}
+              {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+            </>
+          )}
+        </div>
+      </Card>
+
+      {(missing.length > 0 || note) && angles.length > 0 && (
+        <Card className="p-5">
+          <p className="text-sm font-medium">What would make the next run stronger</p>
+          {note && <p className="mt-1 text-sm text-muted">{note}</p>}
+          {missing.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+              {missing.map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
+
+      {angles.length > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted">{angles.length} saved angle{angles.length === 1 ? "" : "s"}. You don't have to test each one on its own: one concept can test several angles with the best hook.</p>
+          <label className="flex shrink-0 items-center gap-2 text-sm">
+            <input type="checkbox" checked={favOnly} onChange={(e) => setFavOnly(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" /> Favourites only
+          </label>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {shown.map((a) => (
+          <AngleCard key={a.id} projectId={projectId} a={a} onMore={() => { setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+        ))}
+      </div>
+      {angles.length > 0 && shown.length === 0 && <p className="text-center text-sm text-muted">No favourites yet. Tap the heart on an angle you like.</p>}
+    </div>
+  );
+}
+
+function AngleCard({ projectId, a, onMore }: { projectId: string; a: AngleView; onMore: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [pending, start] = useTransition();
+  const [state, action, saving] = useActionState<AngleState, FormData>(saveAngleAction, undefined);
+  const [angle, setAngle] = useState(a.data.angle);
+  const [hooks, setHooks] = useState(a.data.hooks.join("\n"));
+  const [copied, setCopied] = useState(false);
+  useEffect(() => setAngle(a.data.angle), [a.data.angle]);
+  useEffect(() => setHooks(a.data.hooks.join("\n")), [a.data.hooks]);
+  useEffect(() => {
+    if (state?.ok) setEditing(false);
+  }, [state]);
+  const d = a.data;
+  return (
+    <Card className="flex flex-col p-5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {d.awareness && <Badge tone="accent">{d.awareness}</Badge>}
+          {d.sub_avatar && <Badge>{d.sub_avatar}</Badge>}
+          {a.edited && <Badge tone="neutral">edited by you</Badge>}
+        </div>
+        <button type="button" disabled={pending} onClick={() => start(() => favouriteAngleAction(projectId, a.id))} aria-label={a.favourite ? "Remove from favourites" : "Add to favourites"} aria-pressed={a.favourite} className="text-muted transition hover:text-danger">
+          <Heart className={a.favourite ? "h-5 w-5 fill-current text-danger" : "h-5 w-5"} />
+        </button>
+      </div>
+
+      {editing ? (
+        <form action={action} className="mt-3 space-y-3">
+          <input type="hidden" name="projectId" value={projectId} />
+          <input type="hidden" name="id" value={a.id} />
+          <div>
+            <Label htmlFor={`angle-${a.id}`}>Angle</Label>
+            <Textarea id={`angle-${a.id}`} name="angle" value={angle} onChange={(e) => setAngle(e.target.value)} rows={3} maxLength={400} />
+          </div>
+          <div>
+            <Label htmlFor={`hooks-${a.id}`}>Hooks (one per line)</Label>
+            <Textarea id={`hooks-${a.id}`} name="hooks" value={hooks} onChange={(e) => setHooks(e.target.value)} rows={4} />
+          </div>
+          <div className="flex items-center gap-3">
+            <Button type="submit" size="sm" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+            {state?.error && <span role="alert" className="text-xs text-danger">{state.error}</span>}
+          </div>
+        </form>
+      ) : (
+        <>
+          <h3 className="mt-3 break-words text-[17px] font-semibold leading-snug tracking-tight">{d.angle}</h3>
+          {d.desire && <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">Desire:</span> {d.desire}</p>}
+          {d.mechanism && <p className="mt-1 break-words text-sm text-muted"><span className="font-medium text-fg">Mechanism:</span> {d.mechanism}</p>}
+          {d.hooks.length > 0 && (
+            <ol className="mt-3 space-y-1.5 text-sm">
+              {d.hooks.map((h, i) => (
+                <li key={i} className="rounded-xl bg-surface-2 px-3 py-2 break-words">{h}</li>
+              ))}
+            </ol>
+          )}
+        </>
+      )}
+
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer text-accent">Why this angle</summary>
+        <div className="mt-2 space-y-2 text-muted">
+          {d.why && <p className="break-words">{d.why}</p>}
+          {d.evidence.length > 0 && (
+            <ul className="list-disc space-y-1 pl-5">
+              {d.evidence.map((e, i) => (
+                <li key={i} className="break-words">{e}</li>
+              ))}
+            </ul>
+          )}
+          {d.test_type && <p><span className="font-medium text-fg">How to test:</span> {d.test_type}</p>}
+          {d.risks.length > 0 && <p className="break-words"><span className="font-medium text-fg">Needs care:</span> {d.risks.join("; ")}</p>}
+          {d.sources.length > 0 && <p className="break-words text-xs">From: {d.sources.join(", ")}</p>}
+          {d.rules.length > 0 && <p className="break-words text-xs">Rules applied: {d.rules.join(", ")}</p>}
+        </div>
+      </details>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        <Button variant="secondary" size="sm" onClick={onMore}><Sparkles className="h-4 w-4" /> More like this</Button>
+        <Button variant="ghost" size="sm" onClick={() => setEditing((e) => !e)}><Pencil className="h-4 w-4" /> Edit</Button>
+        <Button variant="ghost" size="sm" onClick={() => { void navigator.clipboard?.writeText([d.angle, ...d.hooks.map((h, i) => `${i + 1}. ${h}`)].join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>
+          <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}
+        </Button>
+        <Button variant="ghost" size="sm" disabled={pending} className="ml-auto" aria-label="Delete this angle" onClick={() => start(() => deleteAngleAction(projectId, a.id))}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </Card>
+  );
+}

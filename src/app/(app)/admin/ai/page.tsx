@@ -4,8 +4,9 @@ import { query } from "@/lib/db";
 import { PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { ProviderSwitch, RoutingForm, SafetyForm, TestConnection } from "@/components/ai-settings-form";
-import { getAiConfig, readiness } from "@/lib/ai/settings";
-import { listModels, AiError } from "@/lib/ai/gemini";
+import { getAiConfig, readiness, readinessAngles } from "@/lib/ai/settings";
+import { AiError } from "@/lib/ai/gemini";
+import { listModelsFor } from "@/lib/ai/provider";
 import { spentLast24hCents } from "@/lib/ai/guard";
 import { aud } from "@/lib/usage-limit";
 import { Button } from "@/components/ui/button";
@@ -24,15 +25,21 @@ export default async function AiPage({ searchParams }: { searchParams: Promise<{
   const sp = await searchParams;
   const cfg = await getAiConfig();
   const ready = readiness(cfg);
+  const readyAngles = readinessAngles(cfg);
   const hasKey = !!process.env.GEMINI_API_KEY;
+  const hasXai = !!process.env.XAI_API_KEY;
   let models: string[] = [];
-  let modelError = "";
-  if (sp.models === "1" && hasKey) {
-    try {
-      models = await listModels();
-    } catch (e) {
-      modelError = e instanceof AiError ? e.message : "Could not load the list.";
+  const modelErrors: string[] = [];
+  if (sp.models === "1") {
+    for (const [prov, has, label] of [["gemini", hasKey, "Gemini"], ["xai", hasXai, "xAI"]] as const) {
+      if (!has) continue;
+      try {
+        models.push(...(await listModelsFor(prov)));
+      } catch (e) {
+        modelErrors.push(`${label}: ${e instanceof AiError ? e.message : "Could not load the list."}`);
+      }
     }
+    models = [...new Set(models)].sort();
   }
   const spent = await spentLast24hCents();
   const perPerson = (
@@ -48,7 +55,6 @@ export default async function AiPage({ searchParams }: { searchParams: Promise<{
     )
   ).rows;
   const others = [
-    { name: "xAI (Grok)", env: "XAI_API_KEY", note: "Planned for writing angles and scripts. Gets its card when the Script Writer is built." },
     { name: "OpenAI", env: "OPENAI_API_KEY", note: "Planned for writing tests and meaning-based search. Added when needed." },
   ].map((o) => ({ ...o, found: !!process.env[o.env] }));
 
@@ -63,7 +69,8 @@ export default async function AiPage({ searchParams }: { searchParams: Promise<{
       <div className="space-y-8">
         <section id="providers" className="scroll-mt-24 space-y-4">
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <Badge tone={ready.ok ? "success" : "warning"}>{ready.ok ? "Ready to use" : ready.reason}</Badge>
+            <Badge tone={ready.ok ? "success" : "warning"}>{ready.ok ? "Brief ready" : "Brief: " + ready.reason}</Badge>
+            <Badge tone={readyAngles.ok ? "success" : "warning"}>{readyAngles.ok ? "Angles ready" : "Angles: " + readyAngles.reason}</Badge>
             <span className="text-muted">Last 24 hours: {aud(spent)} of {aud(Number(cfg.daily_cap_aud) * 100)} cap</span>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
@@ -74,17 +81,30 @@ export default async function AiPage({ searchParams }: { searchParams: Promise<{
                 action={<Badge tone={hasKey ? "success" : "danger"}>{hasKey ? "Key found" : "Key missing"}</Badge>}
               />
               <div className="space-y-5 p-6">
-                <ProviderSwitch cfg={cfg} />
+                <ProviderSwitch cfg={cfg} provider="gemini" />
                 <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
                   <TestConnection />
                   <Link href="/admin/ai?models=1#routing">
-                    <Button variant="secondary" size="sm" disabled={!hasKey}>Load Google's model list</Button>
+                    <Button variant="secondary" size="sm" disabled={!hasKey && !hasXai}>Load model lists</Button>
                   </Link>
                 </div>
               </div>
             </Card>
+            <Card className="lg:col-span-3">
+              <CardHeader
+                title="xAI (Grok)"
+                description="Writes the angles (and later scripts). The key lives in Render (XAI_API_KEY) and is never shown or saved here."
+                action={<Badge tone={hasXai ? "success" : "danger"}>{hasXai ? "Key found" : "Key missing"}</Badge>}
+              />
+              <div className="space-y-5 p-6">
+                <ProviderSwitch cfg={cfg} provider="xai" />
+                <div className="border-t border-border pt-5">
+                  <TestConnection provider="xai" />
+                </div>
+              </div>
+            </Card>
             {others.map((o) => (
-              <Card key={o.name} className="lg:col-span-1">
+              <Card key={o.name} className="lg:col-span-3">
                 <CardHeader title={o.name} action={<Badge tone={o.found ? "accent" : "neutral"}>{o.found ? "Key found, not used yet" : "Not connected"}</Badge>} />
                 <p className="px-6 pb-6 pt-3 text-sm text-muted">{o.note} Key name for Render: {o.env}.</p>
               </Card>
@@ -96,9 +116,11 @@ export default async function AiPage({ searchParams }: { searchParams: Promise<{
           <Card>
             <CardHeader
               title="Task routing"
-              description="Which model does which job and what it costs. Model names come from the provider's list, never from the code. More jobs (angles, scripts, chat, video) get a row here as they are built."
+              description="Which model does which job and what it costs. Model names come from the provider's list, never from the code. More jobs (scripts, chat, video) get a row here as they are built."
             />
-            {modelError && <p role="alert" className="px-6 pt-3 text-sm text-danger">{modelError}</p>}
+            {modelErrors.map((m) => (
+              <p key={m} role="alert" className="px-6 pt-3 text-sm text-danger">{m}</p>
+            ))}
             {models.length > 0 && <p className="px-6 pt-3 text-sm text-muted">{models.length} models loaded. Click in a model box to choose one.</p>}
             <RoutingForm cfg={cfg} models={models} />
           </Card>

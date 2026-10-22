@@ -19,6 +19,8 @@ export function startResumer() {
 export async function resumeStaleJobs() {
   // Give up on runs that keep getting cut off.
   await query("update ai_jobs set status = 'failed', error = 'This run was cut off several times. Please run it again.', finished_at = now() where status in ('queued','running') and resumes >= 3 and heartbeat_at < now() - interval '" + STALE + "'");
+  // Runs that can't be picked up (angles are one single AI call) are simply marked as cut off.
+  await query("update ai_jobs set status = 'failed', error = 'This run was cut off by a restart. Please run it again; files already read are not charged twice.', finished_at = now() where status in ('queued','running') and kind <> 'brief' and heartbeat_at < now() - interval '" + STALE + "'");
   // Claim one stale run atomically, so two servers can never run the same job.
   const { rows } = await query<{ id: string; owner_id: string; project_id: string; cap_cents: number }>(
     `update ai_jobs set heartbeat_at = now(), resumes = resumes + 1, message = 'Picking up where it left off…'

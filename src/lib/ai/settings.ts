@@ -4,6 +4,10 @@ import { query } from "../db";
 export const SETTING_KEYS = [
   "ai_enabled", // "1" or "0": a kill switch for every AI feature
   "gemini_enabled", // "1" or "0": switch just the Gemini provider off
+  "xai_enabled", // "1" or "0": switch just the xAI (Grok) provider off
+  "angle_provider", // "xai" or "gemini": who writes the angles
+  "angle_model",
+  "angle_in_usd", "angle_out_usd",
   "reader_model", // reads and sorts files (cheap and fast)
   "writer_model", // writes the brief
   "reader_in_usd", "reader_out_usd", // US$ per million tokens
@@ -20,6 +24,11 @@ export type SettingKey = (typeof SETTING_KEYS)[number];
 export const DEFAULTS: Record<SettingKey, string> = {
   ai_enabled: "1",
   gemini_enabled: "1",
+  xai_enabled: "1",
+  angle_provider: "xai",
+  angle_model: "",
+  angle_in_usd: "",
+  angle_out_usd: "",
   reader_model: "",
   writer_model: "",
   reader_in_usd: "",
@@ -72,6 +81,26 @@ export function readiness(cfg: AiConfig): Ready {
     return { ok: false, reason: "The admin has not entered the model prices yet." };
   }
   return { ok: true, cfg, reader, writer, usdAud: num(cfg.usd_aud, 1.55) || 1.55, dailyCapAud: num(cfg.daily_cap_aud, 20), jobCapAud: num(cfg.job_cap_aud, 3) };
+}
+
+export type ReadyAngles =
+  | (Extract<Ready, { ok: true }> & { angle: { provider: "gemini" | "xai"; model: string; inUsd: number; outUsd: number } })
+  | { ok: false; reason: string };
+
+/** The angle writer needs the file reader as well as its own provider, model and prices. */
+export function readinessAngles(cfg: AiConfig): ReadyAngles {
+  const base = readiness(cfg);
+  if (!base.ok) return base;
+  const provider = cfg.angle_provider === "gemini" ? "gemini" : "xai";
+  if (provider === "xai") {
+    if (cfg.xai_enabled !== "1") return { ok: false, reason: "xAI is switched off by the admin." };
+    if (!process.env.XAI_API_KEY && !isTestMode()) return { ok: false, reason: "The xAI key has not been added yet." };
+  }
+  if (!cfg.angle_model) return { ok: false, reason: "The admin has not chosen the angle model yet." };
+  const inUsd = num(cfg.angle_in_usd, NaN);
+  const outUsd = num(cfg.angle_out_usd, NaN);
+  if (!Number.isFinite(inUsd) || !Number.isFinite(outUsd)) return { ok: false, reason: "The admin has not entered the angle model prices yet." };
+  return { ...base, angle: { provider, model: cfg.angle_model, inUsd, outUsd } };
 }
 
 /** Test servers use an in-memory database and a fake AI. A real server never does. */

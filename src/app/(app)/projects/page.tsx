@@ -16,12 +16,12 @@ const newButton = (
   </Link>
 );
 
-type Row = { id: string; name: string; niche: string; market: string; updated_at: string; files: string; words: string };
+type Row = { id: string; name: string; kind: string; niche: string; market: string; updated_at: string; files: string; words: string };
 
 export default async function ProjectsPage() {
   const me = await requireUser();
   const { rows } = await query<Row>(
-    `select p.id, p.name, p.niche, p.market, p.updated_at,
+    `select p.id, p.name, p.kind, p.niche, p.market, p.updated_at,
             (select count(*) from project_files f where f.project_id = p.id) as files,
             (select coalesce(sum(word_count),0) from project_files f where f.project_id = p.id) as words
        from projects p
@@ -46,7 +46,10 @@ export default async function ProjectsPage() {
               <Card interactive className="h-full p-5">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-[17px] font-semibold leading-snug tracking-tight">{p.name}</h2>
-                  {Number(p.files) === 0 && <Badge tone="warning">No files yet</Badge>}
+                  <span className="flex shrink-0 gap-1.5">
+                    {p.kind === "quick" && <Badge tone="accent">Quick</Badge>}
+                    {Number(p.files) === 0 && <Badge tone="warning">No files yet</Badge>}
+                  </span>
                 </div>
                 <p className="mt-1 text-sm text-muted">{[p.niche, p.market].filter(Boolean).join(" · ") || "No niche set"}</p>
                 <div className="mt-5 flex items-center gap-4 text-sm text-muted">

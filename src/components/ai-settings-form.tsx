@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Check, Loader2, PlugZap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/field";
+import { Input, Label, Select } from "@/components/ui/field";
 import { saveAiSettingsAction, testConnectionAction, type AiFormState } from "@/app/(app)/admin/ai/actions";
 import type { AiConfig } from "@/lib/ai/settings";
 
@@ -43,12 +43,14 @@ function Toggle({ name, title, text, on }: { name: string; title: string; text: 
   );
 }
 
-/** Small on/off switch inside the Gemini provider card. */
-export function ProviderSwitch({ cfg }: { cfg: AiConfig }) {
+/** Small on/off switch inside a provider card. */
+export function ProviderSwitch({ cfg, provider }: { cfg: AiConfig; provider: "gemini" | "xai" }) {
   const [state, action, pending] = useActionState<AiFormState, FormData>(saveAiSettingsAction, undefined);
+  const name = provider === "xai" ? "xai_enabled" : "gemini_enabled";
+  const label = provider === "xai" ? "xAI (Grok)" : "Gemini";
   return (
     <form action={action} className="space-y-3">
-      <Toggle name="gemini_enabled" title="Gemini is switched on" text="Untick to stop everything that uses Gemini, without touching other providers." on={cfg.gemini_enabled === "1"} />
+      <Toggle name={name} title={`${label} is switched on`} text={`Untick to stop everything that uses ${label}, without touching other providers.`} on={cfg[name] === "1"} />
       <SaveRow pending={pending} state={state} />
     </form>
   );
@@ -94,6 +96,26 @@ export function RoutingForm({ cfg, models }: { cfg: AiConfig; models: string[] }
           </div>
         </div>
       </div>
+      <div className="rounded-2xl border border-border p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="font-medium">Writing angles</p>
+            <p className="text-xs text-muted">Used by the Angle Generator. Grok (xAI) is the plan; Gemini works too.</p>
+          </div>
+          <div className="w-44">
+            <Label htmlFor="angle_provider" className="sr-only">Provider for angles</Label>
+            <Select id="angle_provider" name="angle_provider" defaultValue={cfg.angle_provider === "gemini" ? "gemini" : "xai"} className="h-9 text-sm">
+              <option value="xai">xAI (Grok)</option>
+              <option value="gemini">Gemini</option>
+            </Select>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field text list="ai-models" name="angle_model" label="Model" value={cfg.angle_model} />
+          <Field name="angle_in_usd" label="Price in (US$ per million)" value={cfg.angle_in_usd} />
+          <Field name="angle_out_usd" label="Price out (US$ per million)" value={cfg.angle_out_usd} />
+        </div>
+      </div>
       <div className="max-w-xs">
         <Field name="usd_aud" label="US$ to A$ rate" value={cfg.usd_aud} />
       </div>
@@ -121,10 +143,11 @@ export function SafetyForm({ cfg }: { cfg: AiConfig }) {
   );
 }
 
-export function TestConnection() {
+export function TestConnection({ provider = "gemini" }: { provider?: "gemini" | "xai" }) {
   const [state, action, pending] = useActionState<AiFormState>(testConnectionAction, undefined);
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="provider" value={provider} />
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
         {pending ? "Testing…" : "Test the connection"}
