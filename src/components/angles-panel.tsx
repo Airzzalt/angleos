@@ -68,6 +68,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
   const [lineTick, setLineTick] = useState(0);
   const [live, setLive] = useState<Job>(job);
   const [count, setCount] = useState(10);
+  const [countText, setCountText] = useState("10");
   const [mode, setMode] = useState<"broad" | "deep">("broad");
   const [focus, setFocus] = useState("");
   const [like, setLike] = useState<AngleView | null>(null);
@@ -178,11 +179,17 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="angle-count">How many angles</Label>
-                  <Select id="angle-count" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={15}>15</option>
-                  </Select>
+                  <Input
+                    id="angle-count"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={25}
+                    value={countText}
+                    onChange={(e) => { setCountText(e.target.value); const n = Math.round(Number(e.target.value)); if (Number.isFinite(n) && n >= 1) setCount(Math.min(25, n)); }}
+                    onBlur={() => setCountText(String(count))}
+                  />
+                  <p className="mt-1 text-xs text-muted">Any number from 1 to 25.</p>
                 </div>
                 <div className="sm:col-span-2">
                   <Label htmlFor="angle-mode">Approach</Label>

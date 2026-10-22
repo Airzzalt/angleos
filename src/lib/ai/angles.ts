@@ -14,7 +14,7 @@ import { generateWith } from "./provider";
 import { normaliseAngles, type Angle } from "./angles-shape";
 
 type ReadyOk = Extract<ReadyAngles, { ok: true }>;
-export const ANGLE_COUNTS = [5, 10, 15] as const;
+export const MAX_ANGLES = 25;
 export type AngleOpts = { count: number; mode: "broad" | "deep"; focus: string; likeId: string | null };
 
 export const NO_RESEARCH_MESSAGE =
@@ -33,7 +33,8 @@ const LIM = {
 
 export function parseOpts(raw: unknown): AngleOpts {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const count = (ANGLE_COUNTS as readonly number[]).includes(Number(o.count)) ? Number(o.count) : 10;
+  const n = Math.round(Number(o.count));
+  const count = Number.isFinite(n) ? Math.max(1, Math.min(MAX_ANGLES, n)) : 10;
   const like = typeof o.likeId === "string" && /^[0-9a-f-]{36}$/i.test(o.likeId) ? o.likeId : null;
   return { count, mode: o.mode === "deep" ? "deep" : "broad", focus: clean(o.focus, 600), likeId: like };
 }
@@ -199,7 +200,7 @@ export async function runAnglesJob(jobId: string, me: SessionUser, project: { id
       : "BROAD (marksman): spread the angles across different sub-avatars and desires, no more than 3 per sub-avatar, so the agency can test many angles.";
     const prompt = `PRODUCT LINE (authoritative: what is sold and who it serves): ${clean(project.name, 120)}. ${clean(proj?.description, 600)}\nTOTAL RESEARCH FILES: ${files.length}\n\nPRODUCT NAME: ${clean(project.name, 120)}\nLink: ${clean(proj?.product_url, 300)}\nNiche: ${clean(proj?.niche, 80)}\nMarket: ${clean(proj?.market, 40)}\nDescription: ${clean(proj?.description, 2000)}\n\nSTANDING NOTES FROM THE OWNER:\n${clean(notes, 8000) || "(none)"}\n\nPRODUCT BRIEF:\n${brief || "(no brief: work from the research digests and notes below)"}\n\nRESEARCH DIGESTS:\n${digest || "(no research files: work only from the notes and description above, and say clearly what is missing)"}\n\nINPUT STRENGTH: ${plan.thin ? "THIN. There is very little information. Be honest about it: write fewer, safer angles if needed, and list exactly what research is missing." : "OK"}\nAPPROACH: ${approach}\nFOCUS FROM THE USER: ${opts.focus || "(none)"}\n${like ? `MAKE MORE LIKE THIS ONE (same spirit, but new and different):\n${JSON.stringify({ sub_avatar: like.sub_avatar, desire: like.desire, angle: like.angle, mechanism: like.mechanism })}\n` : ""}ANGLES ALREADY MADE (do not repeat or reword these):\n${existing.join("\n") || "(none)"}\n\nNUMBER OF ANGLES: ${opts.count}`;
 
-    const res = await withHeartbeat(jobId, () => generateWith(ready.angle.provider, { model: ready.angle.model, system: st.system, prompt, maxOutputTokens: Math.min(24_000, opts.count * 900 + 6000), json: true }));
+    const res = await withHeartbeat(jobId, () => generateWith(ready.angle.provider, { model: ready.angle.model, system: st.system, prompt, maxOutputTokens: Math.min(34_000, opts.count * 1100 + 6000), json: true }));
     await recordUsage({ userId: me.id, workspaceId: me.workspaceId, jobId, task: "angles:write", provider: ready.angle.provider, model: ready.angle.model, inputTokens: res.inputTokens, outputTokens: res.outputTokens, costAud: costAud(res.inputTokens, res.outputTokens, ready.angle, ready.usdAud) });
 
     let parsed: unknown;
