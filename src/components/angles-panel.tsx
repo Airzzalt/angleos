@@ -220,8 +220,8 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
       )}
 
       {angles.length > 0 && (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted">{angles.length} saved angle{angles.length === 1 ? "" : "s"}. You don't have to test each one on its own: one concept can test several angles with the best hook.</p>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <p className="min-w-0 flex-1 basis-60 text-sm text-muted">{angles.length} saved angle{angles.length === 1 ? "" : "s"}. You don't have to test each one on its own: one concept can test several angles with the best hook.</p>
           <label className="flex shrink-0 items-center gap-2 text-sm">
             <input type="checkbox" checked={favOnly} onChange={(e) => setFavOnly(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" /> Favourites only
           </label>
@@ -241,7 +241,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
             </h2>
             <button
               type="button"
-              className="ml-auto inline-flex items-center gap-1 text-xs text-muted hover:text-danger"
+              className="ml-auto inline-flex min-h-10 items-center gap-1 px-2 text-xs text-muted hover:text-danger"
               aria-label={`Delete all angles in set ${all.length - gi}`}
               onClick={() => {
                 if (window.confirm(`Delete all ${g.items.length} angles in this set? This can't be undone.`)) void deleteRunAction(projectId, g.runId).then(() => router.refresh());
