@@ -216,9 +216,19 @@ export async function runAnglesJob(jobId: string, me: SessionUser, project: { id
 }
 
 // ---------- Reading state for the screens ----------
-export type AngleRow = { id: string; data: Angle; favourite: boolean; edited: boolean; created_at: string; job_id: string | null };
+export type AngleRow = { id: string; data: Angle; favourite: boolean; edited: boolean; created_at: string; job_id: string | null; run_at: string };
+/** Newest run first; inside a run the strongest angle (position 0) comes first. */
 export async function getAngles(projectId: string): Promise<AngleRow[]> {
-  return (await query<AngleRow>("select id, data, favourite, edited, created_at, job_id from project_angles where project_id = $1 order by created_at desc, position limit 300", [projectId])).rows;
+  return (
+    await query<AngleRow>(
+      `select a.id, a.data, a.favourite, a.edited, a.created_at, a.job_id, coalesce(j.created_at, a.created_at) as run_at
+         from project_angles a left join ai_jobs j on j.id = a.job_id
+        where a.project_id = $1
+        order by coalesce(j.created_at, a.created_at) desc, a.job_id, a.position
+        limit 300`,
+      [projectId],
+    )
+  ).rows;
 }
 
 export async function latestAngleJob(projectId: string) {

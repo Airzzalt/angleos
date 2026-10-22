@@ -90,7 +90,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   let angleMissing: string[] = [];
   let angleNote = "";
   if (tab === "angles") {
-    angleViews = (await getAngles(project.id)).map((r) => ({ id: r.id, favourite: r.favourite, edited: r.edited, createdAt: r.created_at, data: r.data }));
+    angleViews = (await getAngles(project.id)).map((r) => ({ id: r.id, favourite: r.favourite, edited: r.edited, runId: r.job_id ?? "none", runAt: String(r.run_at), data: r.data }));
     const j = await latestAngleJob(project.id);
     if (j) {
       angleJob = { id: j.id, status: j.status, done: j.done_steps, total: j.total_steps, message: j.message, error: j.error, spentCents: Math.round(Number(j.spent_cents)) };

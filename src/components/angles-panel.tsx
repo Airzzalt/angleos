@@ -15,11 +15,22 @@ export type AngleView = {
   id: string;
   favourite: boolean;
   edited: boolean;
-  createdAt: string;
+  runId: string;
+  runAt: string;
   data: { sub_avatar: string; desire: string; angle: string; awareness: string; mechanism: string; hooks: string[]; evidence: string[]; test_type: string; risks: string[]; why: string; sources: string[]; rules: string[] };
 };
 
 const aud = (c: number) => `A$${(c / 100).toFixed(2)}`;
+
+function groupByRun(list: AngleView[]) {
+  const groups: { runId: string; runAt: string; items: AngleView[] }[] = [];
+  for (const a of list) {
+    const g = groups[groups.length - 1];
+    if (g && g.runId === a.runId) g.items.push(a);
+    else groups.push({ runId: a.runId, runAt: a.runAt, items: [a] });
+  }
+  return groups;
+}
 
 export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string }) {
   const router = useRouter();
@@ -216,17 +227,27 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
           </label>
         </div>
       )}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        {shown.map((a) => (
-          <AngleCard key={a.id} projectId={projectId} a={a} onMore={() => { setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
-        ))}
-      </div>
+      {groupByRun(shown).map((g) => (
+        <section key={g.runId} className="space-y-3">
+          <h2 className="text-sm font-medium text-muted" suppressHydrationWarning>
+            {new Date(g.runAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+            {" · "}
+            {g.items.length} angle{g.items.length === 1 ? "" : "s"}
+            <span className="font-normal"> · strongest first</span>
+          </h2>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {g.items.map((a, i) => (
+              <AngleCard key={a.id} projectId={projectId} a={a} rank={i + 1} onMore={() => { setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+            ))}
+          </div>
+        </section>
+      ))}
       {angles.length > 0 && shown.length === 0 && <p className="text-center text-sm text-muted">No favourites yet. Tap the heart on an angle you like.</p>}
     </div>
   );
 }
 
-function AngleCard({ projectId, a, onMore }: { projectId: string; a: AngleView; onMore: () => void }) {
+function AngleCard({ projectId, a, rank, onMore }: { projectId: string; a: AngleView; rank: number; onMore: () => void }) {
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   const [state, action, saving] = useActionState<AngleState, FormData>(saveAngleAction, undefined);
@@ -241,16 +262,17 @@ function AngleCard({ projectId, a, onMore }: { projectId: string; a: AngleView; 
   const d = a.data;
   return (
     <Card className="flex flex-col p-5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-surface-3 px-1.5 text-xs font-semibold" aria-label={`Rank ${rank}`}>{rank}</span>
           {d.awareness && <Badge tone="accent">{d.awareness}</Badge>}
-          {d.sub_avatar && <Badge>{d.sub_avatar}</Badge>}
           {a.edited && <Badge tone="neutral">edited by you</Badge>}
         </div>
-        <button type="button" disabled={pending} onClick={() => start(() => favouriteAngleAction(projectId, a.id))} aria-label={a.favourite ? "Remove from favourites" : "Add to favourites"} aria-pressed={a.favourite} className="text-muted transition hover:text-danger">
+        <button type="button" disabled={pending} onClick={() => start(() => favouriteAngleAction(projectId, a.id))} aria-label={a.favourite ? "Remove from favourites" : "Add to favourites"} aria-pressed={a.favourite} className="shrink-0 text-muted transition hover:text-danger">
           <Heart className={a.favourite ? "h-5 w-5 fill-current text-danger" : "h-5 w-5"} />
         </button>
       </div>
+      {d.sub_avatar && <p className="mt-2 break-words text-xs leading-relaxed text-muted"><span className="font-medium text-fg">Who:</span> {d.sub_avatar}</p>}
 
       {editing ? (
         <form action={action} className="mt-3 space-y-3">
