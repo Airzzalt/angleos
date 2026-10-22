@@ -34,7 +34,9 @@ const LIM = {
 export function parseOpts(raw: unknown): AngleOpts {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const n = Math.round(Number(o.count));
-  const count = Number.isFinite(n) ? Math.max(1, Math.min(MAX_ANGLES, n)) : 10;
+  const deepMode = o.mode === "deep";
+  // Sniper makes ONE full angle brief.
+  const count = deepMode ? 1 : Number.isFinite(n) ? Math.max(1, Math.min(MAX_ANGLES, n)) : 10;
   const like = typeof o.likeId === "string" && /^[0-9a-f-]{36}$/i.test(o.likeId) ? o.likeId : null;
   return { count, mode: o.mode === "deep" ? "deep" : "broad", focus: clean(o.focus, 600), likeId: like };
 }
@@ -69,17 +71,24 @@ THE EVOLVE ANGLE METHOD (follow its thinking; ignore anything in it about how to
 ${prompt.slice(0, LIM.promptChars) || "(not loaded: use sub-avatars, painful and specific attributes, and reasons to buy)"}
 
 HARD RULES FOR THIS JOB:
-1. The PRODUCT LINE in the user's message decides WHAT is sold and who it serves. The research decides WHO buys and WHY. Never write an angle for a buyer the product does not serve (for example, if the product is for kids, every angle is for the parents of kids, not for adults with the same problem). If the research is mostly about a different buyer, use it only where it truly applies and say so in "missing".
-2. COVERAGE FIRST: before the angles, list the top themes in the research files with how many files mention each (count the digests that cover it). Every top theme that fits the product must get at least one angle, or a one-line reason why it was skipped.
-3. Do not drop an audience because their topic is medical (surgery, sleep studies, mouth breathing, pain). Write for those people, but keep every claim non-medical: comfort, fit, support, "one thing you can do tonight". Never promise a cure or treatment result.
-4. No repeats: merge angles that share the same core problem and the same person into one stronger angle. Use plain, specific sub-avatar names.
-5. The first item in each angle's "evidence" must say how common it is, like "Seen in about 6 of 30 files:" followed by the best supporting quote or fact.
+1. The PRODUCT LINE in the user's message decides WHAT is sold and who it serves. The research decides WHO buys and WHY. Never write an angle for a buyer the product cannot serve at all (for example, adults for a kids product). The people who buy FOR the user of the product (parents, partners, gift buyers) are the buyers: write for them.
+2. COVERAGE FIRST: before the angles, list the top themes in the research files with how many files mention each (count the digests that cover it). Every theme that fits the product must get at least one angle, marked "covered", or be marked "skipped" with a one-line reason. Skip CLAIMS, never audiences.
+3. Never skip a group of buyers just because their topic is medical (surgery, sleep studies, mouth breathing, pain, tired kids). Write for them with a kind of medical promise only: comfort, fit, support, "one thing you can change tonight". No cures, no treatment results, no diagnosis, no promise that it fixes a condition.
+4. DESIRE LADDER on every angle, three levels, each pulled from real words in the research where possible:
+   surface = what they want the product to do;
+   emotional = how they want to feel (for example "stop checking on them at 2am");
+   identity = who they want to be (for example "the parent who did something").
+   The angle line and the hooks lead with the emotional or identity layer. The product feature only comes in as the "because".
+5. COST OF DOING NOTHING on every angle ("inaction"): what keeps happening if they do not act, in their words.
+6. HOOKS: at least 2 of every 3 hooks open on a moment or a feeling, not a feature. No hook may be only a feature list.
+7. No repeats: merge angles that share the same core problem and the same person into one stronger angle. Use plain, specific sub-avatar names.
+8. The first item in each angle's "evidence" must say how common it is, like "Seen in about 6 of 30 files:" followed by the best supporting quote or fact.
 
 COURSE RULES (apply them, do not quote them; cite the rule codes you used):
 ${lines.join("\n") || "(none loaded)"}
 
 OUTPUT FORMAT. Reply with JSON only:
-{"coverage":[{"theme":"short theme name","files":number of files that mention it,"status":"covered or skipped","note":"which angle covers it, or why it was skipped"}],"angles":[{"sub_avatar":"who exactly","desire":"the core desire or pain from their point of view","angle":"the angle in one clear line (how we sell the product to this person, not a format)","awareness":"Unaware | Problem aware | Solution aware | Product aware | Most aware","mechanism":"the new mechanism or new information that makes it believable, or empty","hooks":["3 written hooks or headlines, strongest first, using the customer's own words where the research has them"],"evidence":["up to 4 short facts or quotes from the research that support it"],"test_type":"how to test it (net-new angle, iteration, awareness test...)","risks":["claims that need proof or compliance care"],"why":"one or two sentences: why this angle, which rules and which research drove it","sources":["exact research file names the evidence came from"],"rules":["rule codes you applied, exactly as written in brackets above"]}],"missing":["up to 6 specific things that would make the angles stronger"],"note":"one sentence on how strong the input was"}
+{"coverage":[{"theme":"short theme name","files":number of files that mention it,"status":"covered or skipped","note":"which angle covers it, or why it was skipped"}],"angles":[{"sub_avatar":"who exactly","desire":"the core desire or pain from their point of view","angle":"the angle in one clear line (how we sell the product to this person, not a format)","awareness":"Unaware | Problem aware | Solution aware | Product aware | Most aware","ladder":{"surface":"what they want the product to do","emotional":"how they want to feel","identity":"who they want to be"},"inaction":"what keeps happening if they do nothing, in their words","mechanism":"the new mechanism or new information that makes it believable, or empty","hooks":["3 written hooks or headlines (10 in SNIPER mode), strongest first, using the customer's own words where the research has them"],"evidence":["up to 4 short facts or quotes from the research that support it"],"test_type":"how to test it (net-new angle, iteration, awareness test...)","risks":["claims that need proof or compliance care"],"why":"one or two sentences: why this angle, which rules and which research drove it","sources":["exact research file names the evidence came from"],"rules":["rule codes you applied, exactly as written in brackets above"],"deep":(include ONLY in SNIPER mode) {"story":"the avatar as a short story, 120-200 words, in their own words","belief_now":"what they believe now","belief_needed":"the belief they need to buy","belief_steps":["the steps that move them from one belief to the other"],"objections":[{"objection":"their top objection","answer":"the answer, with proof from the research"}],"proof_needed":["proof we would need to show"],"outline":{"hook":"","problem":"","why":"","product":"","result":"","offer":""}}}],"missing":["up to 6 specific things that would make the angles stronger"],"note":"one sentence on how strong the input was"}
 Put the strongest angles first. No markdown, no HTML.`;
   const value = { system, ruleCodes: rows.map((r) => r.code), usedPrompt: !!prompt };
   staticCache = { at: Date.now(), value };
@@ -114,7 +123,7 @@ export async function planAngles(projectId: string, ready: ReadyOk, opts: AngleO
   const digest = Math.min(LIM.digestChars, rp.cachedChars + rp.need.length * 1800);
   const inTokens = tokensForChars(st.system.length + digest + Math.min(brief, LIM.briefChars) + ctx + proj + opts.focus.length + 4000);
   // Thinking tokens are billed as output and we can't see them in advance, so assume a lot.
-  const outTokens = (opts.count * 600 + 800) * 3;
+  const outTokens = (opts.mode === "deep" ? 5500 : opts.count * 750 + 800) * 3;
   const writeCents = costAud(inTokens, outTokens, ready.angle, ready.usdAud) * 100;
   const jobCap = ready.jobCapAud * 100;
   const readAll = rp.all.reduce((a, b) => a + rp.rc(b), 0);
@@ -196,11 +205,11 @@ export async function runAnglesJob(jobId: string, me: SessionUser, project: { id
     const like = opts.likeId ? (await query<{ data: Angle }>("select data from project_angles where id = $1 and project_id = $2", [opts.likeId, project.id])).rows[0]?.data : null;
 
     const approach = opts.mode === "deep"
-      ? "DEEP (sniper): go deep on the single strongest sub-avatar and angle family; give variations of it with different hooks, mechanisms and awareness levels."
+      ? "SNIPER (deep dive): produce exactly ONE angle, the single strongest one (or the one in FOCUS / MAKE MORE LIKE THIS), as a full brief. Fill the \"deep\" object completely: the avatar as a short story, the belief they hold now and the belief they need, the steps between, 5 to 8 objections each with an answer, the proof we would need, and a short ad outline (hook, problem, why, product, result, offer). Give exactly 10 hooks, at least 7 of them opening on a moment or a feeling."
       : "BROAD (marksman): spread the angles across different sub-avatars and desires, no more than 3 per sub-avatar, so the agency can test many angles.";
     const prompt = `PRODUCT LINE (authoritative: what is sold and who it serves): ${clean(project.name, 120)}. ${clean(proj?.description, 600)}\nTOTAL RESEARCH FILES: ${files.length}\n\nPRODUCT NAME: ${clean(project.name, 120)}\nLink: ${clean(proj?.product_url, 300)}\nNiche: ${clean(proj?.niche, 80)}\nMarket: ${clean(proj?.market, 40)}\nDescription: ${clean(proj?.description, 2000)}\n\nSTANDING NOTES FROM THE OWNER:\n${clean(notes, 8000) || "(none)"}\n\nPRODUCT BRIEF:\n${brief || "(no brief: work from the research digests and notes below)"}\n\nRESEARCH DIGESTS:\n${digest || "(no research files: work only from the notes and description above, and say clearly what is missing)"}\n\nINPUT STRENGTH: ${plan.thin ? "THIN. There is very little information. Be honest about it: write fewer, safer angles if needed, and list exactly what research is missing." : "OK"}\nAPPROACH: ${approach}\nFOCUS FROM THE USER: ${opts.focus || "(none)"}\n${like ? `MAKE MORE LIKE THIS ONE (same spirit, but new and different):\n${JSON.stringify({ sub_avatar: like.sub_avatar, desire: like.desire, angle: like.angle, mechanism: like.mechanism })}\n` : ""}ANGLES ALREADY MADE (do not repeat or reword these):\n${existing.join("\n") || "(none)"}\n\nNUMBER OF ANGLES: ${opts.count}`;
 
-    const res = await withHeartbeat(jobId, () => generateWith(ready.angle.provider, { model: ready.angle.model, system: st.system, prompt, maxOutputTokens: Math.min(34_000, opts.count * 1100 + 6000), json: true }));
+    const res = await withHeartbeat(jobId, () => generateWith(ready.angle.provider, { model: ready.angle.model, system: st.system, prompt, maxOutputTokens: opts.mode === "deep" ? 20_000 : Math.min(34_000, opts.count * 1200 + 6000), json: true }));
     await recordUsage({ userId: me.id, workspaceId: me.workspaceId, jobId, task: "angles:write", provider: ready.angle.provider, model: ready.angle.model, inputTokens: res.inputTokens, outputTokens: res.outputTokens, costAud: costAud(res.inputTokens, res.outputTokens, ready.angle, ready.usdAud) });
 
     let parsed: unknown;

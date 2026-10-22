@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check, CheckCircle2, Heart, Loader2, Pencil, Sparkles, Trash2, X, Copy } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Heart, Loader2, Pencil, Sparkles, Trash2, X, Copy, Target, PenLine, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
+import type { Angle } from "@/lib/ai/angles-shape";
 import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
 import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
 
@@ -17,7 +18,7 @@ export type AngleView = {
   edited: boolean;
   runId: string;
   runAt: string;
-  data: { sub_avatar: string; desire: string; angle: string; awareness: string; mechanism: string; hooks: string[]; evidence: string[]; test_type: string; risks: string[]; why: string; sources: string[]; rules: string[] };
+  data: Angle;
 };
 
 const aud = (c: number) => `A$${(c / 100).toFixed(2)}`;
@@ -177,7 +178,13 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
                 </div>
               )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div>
+                {mode === "deep" ? (
+                  <div>
+                    <Label htmlFor="angle-count">How many angles</Label>
+                    <p id="angle-count" className="rounded-xl bg-surface-2 px-3 py-2 text-sm text-muted">Sniper makes one full angle brief.</p>
+                  </div>
+                ) : (
+                  <div>
                   <Label htmlFor="angle-count">How many angles</Label>
                   <Input
                     id="angle-count"
@@ -191,6 +198,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
                   />
                   <p className="mt-1 text-xs text-muted">Any number from 1 to 25.</p>
                 </div>
+                )}
                 <div className="sm:col-span-2">
                   <Label htmlFor="angle-mode">Approach</Label>
                   <Select id="angle-mode" value={mode} onChange={(e) => setMode(e.target.value === "deep" ? "deep" : "broad")}>
@@ -315,7 +323,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
           </div>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {g.items.map((a, i) => (
-              <AngleCard key={a.id} projectId={projectId} a={a} rank={i + 1} onMore={() => { setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+              <AngleCard key={a.id} projectId={projectId} a={a} rank={i + 1} onMore={() => { setMode("broad"); setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} onDeep={() => { setMode("deep"); setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
             ))}
           </div>
         </section>
@@ -325,7 +333,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
   );
 }
 
-function AngleCard({ projectId, a, rank, onMore }: { projectId: string; a: AngleView; rank: number; onMore: () => void }) {
+function AngleCard({ projectId, a, rank, onMore, onDeep }: { projectId: string; a: AngleView; rank: number; onMore: () => void; onDeep: () => void }) {
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   const [state, action, saving] = useActionState<AngleState, FormData>(saveAngleAction, undefined);
@@ -373,7 +381,16 @@ function AngleCard({ projectId, a, rank, onMore }: { projectId: string; a: Angle
       ) : (
         <>
           <h3 className="mt-3 break-words text-[17px] font-semibold leading-snug tracking-tight">{d.angle}</h3>
-          {d.desire && <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">Desire:</span> {d.desire}</p>}
+          {d.ladder ? (
+            <dl className="mt-2 space-y-1 text-sm">
+              {([["Surface", d.ladder.surface], ["Emotional", d.ladder.emotional], ["Identity", d.ladder.identity]] as const).filter(([, v]) => v).map(([k, v]) => (
+                <div key={k} className="flex gap-2"><dt className="w-[4.5rem] shrink-0 font-medium text-fg">{k}</dt><dd className="min-w-0 break-words text-muted">{v}</dd></div>
+              ))}
+            </dl>
+          ) : (
+            d.desire && <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">Desire:</span> {d.desire}</p>
+          )}
+          {d.inaction && <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">If they do nothing:</span> {d.inaction}</p>}
           {d.mechanism && <p className="mt-1 break-words text-sm text-muted"><span className="font-medium text-fg">Mechanism:</span> {d.mechanism}</p>}
           {d.hooks.length > 0 && (
             <ol className="mt-3 space-y-1.5 text-sm">
@@ -383,6 +400,42 @@ function AngleCard({ projectId, a, rank, onMore }: { projectId: string; a: Angle
             </ol>
           )}
         </>
+      )}
+
+      {d.deep && (
+        <details open className="mt-3 rounded-xl bg-surface-2/60 p-3 text-sm">
+          <summary className="cursor-pointer font-medium text-accent">Full angle brief</summary>
+          <div className="mt-3 space-y-4 text-muted">
+            {d.deep.story && <div><p className="font-medium text-fg">The avatar</p><p className="mt-1 whitespace-pre-wrap break-words">{d.deep.story}</p></div>}
+            {(d.deep.belief_now || d.deep.belief_needed) && (
+              <div>
+                <p className="font-medium text-fg">Belief to move</p>
+                {d.deep.belief_now && <p className="mt-1 break-words"><span className="text-fg">Believes now:</span> {d.deep.belief_now}</p>}
+                {d.deep.belief_steps.length > 0 && <ol className="my-1 list-decimal space-y-1 pl-5">{d.deep.belief_steps.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ol>}
+                {d.deep.belief_needed && <p className="break-words"><span className="text-fg">Needs to believe:</span> {d.deep.belief_needed}</p>}
+              </div>
+            )}
+            {d.deep.objections.length > 0 && (
+              <div>
+                <p className="font-medium text-fg">Top objections and answers</p>
+                <ul className="mt-1 space-y-2">{d.deep.objections.map((o, i) => <li key={i} className="break-words"><span className="text-fg">{o.objection}</span><br />{o.answer}</li>)}</ul>
+              </div>
+            )}
+            {d.deep.proof_needed.length > 0 && (
+              <div><p className="font-medium text-fg">Proof we would need</p><ul className="mt-1 list-disc space-y-1 pl-5">{d.deep.proof_needed.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ul></div>
+            )}
+            {Object.values(d.deep.outline).some(Boolean) && (
+              <div>
+                <p className="font-medium text-fg">Ad outline</p>
+                <dl className="mt-1 space-y-1">
+                  {([["Hook", d.deep.outline.hook], ["Problem", d.deep.outline.problem], ["Why", d.deep.outline.why], ["Product", d.deep.outline.product], ["Result", d.deep.outline.result], ["Offer", d.deep.outline.offer]] as const).filter(([, v]) => v).map(([k, v]) => (
+                    <div key={k} className="flex gap-2"><dt className="w-16 shrink-0 text-fg">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
+                  ))}
+                </dl>
+              </div>
+            )}
+          </div>
+        </details>
       )}
 
       <details className="mt-3 text-sm">
@@ -405,10 +458,13 @@ function AngleCard({ projectId, a, rank, onMore }: { projectId: string; a: Angle
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <Button variant="secondary" size="sm" onClick={onMore}><Sparkles className="h-4 w-4" /> More like this</Button>
+        {!d.deep && <Button variant="ghost" size="sm" onClick={onDeep}><Target className="h-4 w-4" /> Go deep (Sniper)</Button>}
         <Button variant="ghost" size="sm" onClick={() => setEditing((e) => !e)}><Pencil className="h-4 w-4" /> Edit</Button>
         <Button variant="ghost" size="sm" onClick={() => { void navigator.clipboard?.writeText([d.angle, ...d.hooks.map((h, i) => `${i + 1}. ${h}`)].join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>
           <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}
         </Button>
+        <Button variant="ghost" size="sm" disabled title="Coming with the Script Writer" aria-label="Turn this into a script (coming soon)"><PenLine className="h-4 w-4" /> Make a script</Button>
+        <Button variant="ghost" size="sm" disabled title="Coming with the Static Ad Builder" aria-label="Turn this into a static ad (coming soon)"><ImageIcon className="h-4 w-4" /> Make a static ad</Button>
         <Button variant="ghost" size="sm" disabled={pending} className="ml-auto" aria-label="Delete this angle" onClick={() => start(() => deleteAngleAction(projectId, a.id))}>
           <Trash2 className="h-4 w-4" />
         </Button>

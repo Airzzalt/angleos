@@ -66,3 +66,20 @@ test("coverage themes are cleaned, capped at the file count and sorted by how co
   assert.equal(c[1].theme, "Surgery");
   assert.deepEqual(normaliseCoverage("nope", 10), []);
 });
+
+test("desire ladder, cost of inaction and a sniper brief are kept and cleaned", () => {
+  const raw = { angles: [{
+    angle: "Be the parent who did something", ladder: { surface: "a pillow", emotional: "stop checking at 2am", identity: "the parent who acted" },
+    inaction: "Another night of waking up", hooks: Array.from({ length: 12 }, (_, i) => `hook ${i}`),
+    deep: { story: "A mum at 2am", belief_now: "x", belief_needed: "y", belief_steps: ["a", "b"], objections: [{ objection: "price", answer: "worth it" }, { objection: "", answer: "z" }], proof_needed: ["p"], outline: { hook: "h", problem: "p", why: "w", product: "pr", result: "r", offer: "o" } },
+  }] };
+  const a = normaliseAngles(raw, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  assert.equal(a.ladder.emotional, "stop checking at 2am");
+  assert.equal(a.inaction, "Another night of waking up");
+  assert.equal(a.hooks.length, 10);
+  assert.equal(a.deep.objections.length, 1);
+  assert.equal(a.deep.outline.offer, "o");
+  const plain = normaliseAngles({ angles: [{ angle: "x", hooks: ["1", "2", "3", "4"] }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  assert.equal(plain.hooks.length, 3);
+  assert.equal(plain.deep, undefined);
+});

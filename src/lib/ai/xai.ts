@@ -114,13 +114,17 @@ function fakeXai(o: GenOpts): GenResult {
   const count = Math.max(1, Math.min(20, Number(/NUMBER OF ANGLES: (\d+)/.exec(o.prompt)?.[1] ?? 3)));
   const names = [...o.prompt.matchAll(/^## (.+?) \[/gm)].map((m) => m[1]).slice(0, 2);
   const rules = [...o.system.matchAll(/^\[([A-Z0-9_]+-\d+|[A-Z]+-\d+)\]/gm)].map((m) => m[1]).slice(0, 2);
-  const angles = Array.from({ length: count }, (_, i) => ({
+  const deep = o.prompt.includes("SNIPER (deep dive)");
+  const angles = Array.from({ length: deep ? 1 : count }, (_, i) => ({
     sub_avatar: `Fake sub-avatar ${(i % 3) + 1}`,
     desire: `Fake desire ${i + 1}`,
     angle: `Fake angle ${i + 1} <b>not html</b>`,
     awareness: "Problem aware",
     mechanism: "Fake mechanism",
-    hooks: [`Fake hook A${i + 1}`, `Fake hook B${i + 1}`, `Fake hook C${i + 1}`],
+    ladder: { surface: "Fake surface want", emotional: "Fake emotional want", identity: "Fake identity want" },
+    inaction: "Fake cost of doing nothing",
+    hooks: deep ? Array.from({ length: 10 }, (_, k) => `Fake deep hook ${k + 1}`) : [`Fake hook A${i + 1}`, `Fake hook B${i + 1}`, `Fake hook C${i + 1}`],
+    ...(deep ? { deep: { story: "Fake avatar story", belief_now: "Fake belief now", belief_needed: "Fake belief needed", belief_steps: ["Step one", "Step two"], objections: [{ objection: "Fake objection", answer: "Fake answer" }], proof_needed: ["Fake proof"], outline: { hook: "H", problem: "P", why: "W", product: "Pr", result: "R", offer: "O" } } } : {}),
     evidence: ["Fake evidence line"],
     test_type: "Net-new angle test",
     risks: ["Needs proof for any health claim"],
