@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
-import { anglesJobStatusAction, deleteAngleAction, estimateAnglesAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
+import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
 
 type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number } | null;
 export type AngleView = {
@@ -227,14 +227,29 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
           </label>
         </div>
       )}
-      {groupByRun(shown).map((g) => (
+      {groupByRun(shown).map((g, gi, all) => (
         <section key={g.runId} className="space-y-3">
-          <h2 className="text-sm font-medium text-muted" suppressHydrationWarning>
-            {new Date(g.runAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
-            {" · "}
-            {g.items.length} angle{g.items.length === 1 ? "" : "s"}
-            <span className="font-normal"> · strongest first</span>
-          </h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="text-sm font-medium" suppressHydrationWarning>
+              Set {all.length - gi}
+              <span className="font-normal text-muted">
+                {" · "}
+                {new Date(g.runAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+                {" · "}
+                {g.items.length} angle{g.items.length === 1 ? "" : "s"} · strongest first
+              </span>
+            </h2>
+            <button
+              type="button"
+              className="ml-auto inline-flex items-center gap-1 text-xs text-muted hover:text-danger"
+              aria-label={`Delete all angles in set ${all.length - gi}`}
+              onClick={() => {
+                if (window.confirm(`Delete all ${g.items.length} angles in this set? This can't be undone.`)) void deleteRunAction(projectId, g.runId).then(() => router.refresh());
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete this set
+            </button>
+          </div>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {g.items.map((a, i) => (
               <AngleCard key={a.id} projectId={projectId} a={a} rank={i + 1} onMore={() => { setLike(a); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />

@@ -102,8 +102,10 @@ function fakeGenerate(o: GenOpts): GenResult {
   let text: string;
   if (o.system.includes("READER")) {
     const items = [...o.prompt.matchAll(/### FILE ([0-9a-f-]{36}) \((.*?)\)\n([\s\S]*?)(?=\n### FILE |$)/g)];
+    // Test hook: a file containing FAKE-SKIP is left out of group answers (but answered when asked alone).
+    const shown = items.length > 1 ? items.filter((m) => !m[3].includes("FAKE-SKIP")) : items;
     text = JSON.stringify(
-      items.map((m) => {
+      shown.map((m) => {
         const body = m[3];
         const category = /reddit|review|customer/i.test(m[2] + body) ? "context" : /script/i.test(m[2]) ? "scripts" : /angle/i.test(m[2]) ? "angles" : "context";
         return { id: m[1], category, title: m[2], summary: `Summary of ${m[2]}: ${body.slice(0, 120).replace(/\s+/g, " ")}`, key_quotes: [] };

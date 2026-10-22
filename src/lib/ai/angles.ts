@@ -145,7 +145,7 @@ export async function startAngles(me: SessionUser, project: { id: string; name: 
     `insert into ai_jobs (owner_id, project_id, kind, status, est_cost_cents, cap_cents, total_steps, message, trace)
      values ($1,$2,'angles','queued',$3,$4,$5,'Starting…',$6) returning id`,
     [me.id, project.id, plan.estCents, plan.capCents, plan.batches.length + (plan.includeWrite ? 1 : 0),
-      JSON.stringify({ files: plan.files, willRead: plan.willRead, includeWrite: plan.includeWrite, readerModel: ready.reader.model, writerProvider: ready.angle.provider, writerModel: ready.angle.model, count: opts.count, mode: opts.mode, hadBrief: plan.hasBrief, thin: plan.thin })],
+      JSON.stringify({ files: plan.files, willRead: plan.willRead, includeWrite: plan.includeWrite, readerModel: ready.reader.model, writerProvider: ready.angle.provider, writerModel: ready.angle.model, count: opts.count, mode: opts.mode, focus: opts.focus, more: !!opts.likeId, hadBrief: plan.hasBrief, thin: plan.thin })],
   );
   const jobId = rows[0].id;
   return { ok: true, jobId, run: () => runAnglesJob(jobId, me, project, cfg, ready, plan, opts) };
@@ -163,10 +163,11 @@ export async function runAnglesJob(jobId: string, me: SessionUser, project: { id
       await setJob(jobId, { status: "done", message: `Read ${plan.willRead} files. There are more files to read, so run it again to continue. Angles are written once every file has been read.` });
       return;
     }
-    if (rd.failedFiles > 0) {
-      await setJob(jobId, { status: "failed", error: `${rd.failedFiles} file${rd.failedFiles === 1 ? "" : "s"} could not be read by the AI. Run it again: files already read are not charged twice.` });
+    if (rd.failedFiles > Math.max(2, Math.ceil(plan.willRead * 0.2))) {
+      await setJob(jobId, { status: "failed", error: `${rd.failedFiles} files could not be read by the AI (${rd.failedNames.slice(0, 3).join(", ")}…). Run it again: files already read are not charged twice.` });
       return;
     }
+    const skipped = rd.failedNames;
 
     await beforeCall({ id: jobId, owner_id: me.id, cap_cents: plan.capCents }, { id: me.id, role: me.role }, cfg);
     await setJob(jobId, { message: "Writing the angles…" });
@@ -203,7 +204,7 @@ export async function runAnglesJob(jobId: string, me: SessionUser, project: { id
     }
     await query("update projects set updated_at = now() where id = $1", [project.id]);
     await query(`update ai_jobs set trace = trace || $2::jsonb where id = $1`, [jobId, JSON.stringify({ missing: out.missing, note: out.note, rules: [...new Set(out.angles.flatMap((a) => a.rules))], usedEvolvePrompt: st.usedPrompt, anglesMade: out.angles.length })]);
-    await setJob(jobId, { status: "done", done: plan.batches.length + 1, message: `${out.angles.length} angles are ready.` });
+    await setJob(jobId, { status: "done", done: plan.batches.length + 1, message: `${out.angles.length} angles are ready.` + (skipped.length ? ` ${skipped.length} file${skipped.length === 1 ? " was" : "s were"} left out because the AI could not read ${skipped.length === 1 ? "it" : "them"}: ${skipped.slice(0, 3).join(", ")}.` : "") });
   } catch (e) {
     if (e instanceof StopJob) await setJob(jobId, { status: e.message === "Cancelled." ? "cancelled" : "failed", error: e.message, message: e.message });
     else if (e instanceof UsageLimitError) await setJob(jobId, { status: "failed", error: e.message });

@@ -73,6 +73,17 @@ export async function deleteAngleAction(projectId: string, id: string) {
   if (!project || !isId(id)) return;
   await query("delete from project_angles where id = $1 and project_id = $2", [id, project.id]);
   revalidatePath(`/projects/${project.id}`);
+  revalidatePath("/angles");
+}
+
+export async function deleteRunAction(projectId: string, runId: string) {
+  const me = await requireUser();
+  const project = await getProject(me, projectId);
+  if (!project) return;
+  if (runId === "none") await query("delete from project_angles where project_id = $1 and job_id is null", [project.id]);
+  else if (isId(runId)) await query("delete from project_angles where project_id = $1 and job_id = $2", [project.id, runId]);
+  revalidatePath(`/projects/${project.id}`);
+  revalidatePath("/angles");
 }
 
 export async function saveAngleAction(_p: AngleState, formData: FormData): Promise<AngleState> {

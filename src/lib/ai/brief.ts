@@ -107,6 +107,7 @@ export async function runBriefJob(jobId: string, me: SessionUser, project: { id:
   const who = { id: me.id, role: me.role };
   let doneSteps = 0;
   let failedFiles = 0;
+  let skipped: string[] = [];
   try {
     await setJob(jobId, { status: "running", message: plan.batches.length ? `Reading ${plan.willRead} files…` : "Writing the brief…" });
 
@@ -117,13 +118,14 @@ export async function runBriefJob(jobId: string, me: SessionUser, project: { id:
     });
     doneSteps = rd.doneBatches;
     failedFiles = rd.failedFiles;
+    skipped = rd.failedNames;
 
     if (!plan.includeWrite) {
       await setJob(jobId, { status: "done", message: `Read ${plan.willRead} files. There are more files to read, so run it again to continue. The brief is written once every file has been read.` });
       return;
     }
-    if (failedFiles > 0) {
-      await setJob(jobId, { status: "failed", error: `${failedFiles} file${failedFiles === 1 ? "" : "s"} could not be read by the AI. Run it again: files already read are not charged twice.` });
+    if (failedFiles > Math.max(2, Math.ceil(plan.willRead * 0.2))) {
+      await setJob(jobId, { status: "failed", error: `${failedFiles} files could not be read by the AI (${skipped.slice(0, 3).join(", ")}…). Run it again: files already read are not charged twice.` });
       return;
     }
 
@@ -168,7 +170,7 @@ export async function runBriefJob(jobId: string, me: SessionUser, project: { id:
       [project.id, me.id, JSON.stringify(sections), score, JSON.stringify(missing), ready.writer.model],
     );
     await query(`update ai_jobs set trace = trace || $2::jsonb where id = $1`, [jobId, JSON.stringify({ rules: rules.map((r) => r.code), usedPromptLibrary: !!extra })]);
-    await setJob(jobId, { status: "done", done: doneSteps + 1, message: "Your brief is ready." });
+    await setJob(jobId, { status: "done", done: doneSteps + 1, message: "Your brief is ready." + (skipped.length ? ` ${skipped.length} file${skipped.length === 1 ? " was" : "s were"} left out because the AI could not read ${skipped.length === 1 ? "it" : "them"}: ${skipped.slice(0, 3).join(", ")}.` : "") });
   } catch (e) {
     if (e instanceof StopJob) await setJob(jobId, { status: e.message === "Cancelled." ? "cancelled" : "failed", error: e.message, message: e.message });
     else if (e instanceof UsageLimitError) await setJob(jobId, { status: "failed", error: e.message });
