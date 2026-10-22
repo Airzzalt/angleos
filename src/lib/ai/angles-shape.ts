@@ -18,8 +18,16 @@ export type Angle = {
   rules: string[];
   /** Three levels of wanting: what they want the product to do, how they want to feel, who they want to be. */
   ladder?: { surface: string; emotional: string; identity: string };
-  /** What keeps happening if they do nothing, in their words. */
+  /** What keeps happening if they do nothing: the buyer's cost, in their words. */
   inaction?: string;
+  /** The stakes chain: the sign they see, what it does physically, what that does to the night, how the buyer feels next day. */
+  chain?: { sign: string; physical: string; night: string; next_day: string };
+  /** The after-picture the buyer hopes for (hope, never a guarantee). */
+  result?: string;
+  /** Everything the ads must NOT claim. Kept apart from the selling parts. */
+  avoid?: string[];
+  /** Competitor and market notes. Kept apart from the selling parts. */
+  market_note?: string;
   /** Only on a Sniper (deep dive) angle: the full brief. */
   deep?: DeepBrief;
 };
@@ -107,6 +115,9 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
     seen.add(key);
     const deep = parseDeep(it.deep);
     const lad = (it.ladder && typeof it.ladder === "object" ? it.ladder : {}) as Record<string, unknown>;
+    const ch = (it.chain && typeof it.chain === "object" ? it.chain : {}) as Record<string, unknown>;
+    const chain = { sign: clean(ch.sign, 260), physical: clean(ch.physical, 260), night: clean(ch.night, 260), next_day: clean(ch.next_day, 260) };
+    const avoid = list(it.avoid, 8, 260);
     const ladder = { surface: clean(lad.surface, 300), emotional: clean(lad.emotional, 300), identity: clean(lad.identity, 300) };
     angles.push({
       sub_avatar: clean(it.sub_avatar, 160),
@@ -123,6 +134,10 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
       rules: list(it.rules, 8, 40).filter((x) => ctx.rules.has(x)),
       ...(ladder.surface || ladder.emotional || ladder.identity ? { ladder } : {}),
       ...(clean(it.inaction, 400) ? { inaction: clean(it.inaction, 400) } : {}),
+      ...(chain.sign || chain.physical || chain.night || chain.next_day ? { chain } : {}),
+      ...(clean(it.result, 400) ? { result: clean(it.result, 400) } : {}),
+      ...(avoid.length ? { avoid } : {}),
+      ...(clean(it.market_note, 400) ? { market_note: clean(it.market_note, 400) } : {}),
       ...(deep ? { deep } : {}),
     });
     if (angles.length >= ctx.max) break;

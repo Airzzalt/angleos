@@ -83,3 +83,17 @@ test("desire ladder, cost of inaction and a sniper brief are kept and cleaned", 
   assert.equal(plain.hooks.length, 3);
   assert.equal(plain.deep, undefined);
 });
+
+test("the stakes chain, result, claims to avoid and market note are kept apart and cleaned", () => {
+  const a = normaliseAngles({ angles: [{
+    angle: "x", chain: { sign: "head slides off", physical: "neck bent", night: "sleep breaks", next_day: "cranky kid" },
+    result: "Breakfast stops being a battle", avoid: ["Do not say it helps breathing", "", "Do not promise results"], market_note: "Competitors use scare ads",
+  }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  assert.equal(a.chain.next_day, "cranky kid");
+  assert.equal(a.result, "Breakfast stops being a battle");
+  assert.deepEqual(a.avoid, ["Do not say it helps breathing", "Do not promise results"]);
+  assert.equal(a.market_note, "Competitors use scare ads");
+  const none = normaliseAngles({ angles: [{ angle: "y" }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  assert.equal(none.chain, undefined);
+  assert.equal(none.avoid, undefined);
+});

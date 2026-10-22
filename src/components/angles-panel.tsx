@@ -1,15 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check, CheckCircle2, Heart, Loader2, Pencil, Sparkles, Trash2, X, Copy, Target, PenLine, Image as ImageIcon } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, Check, CheckCircle2, Heart, Loader2, Pencil, Sparkles, Trash2, X, Copy, Target, PenLine, Image as ImageIcon, ArrowRight, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import type { Angle } from "@/lib/ai/angles-shape";
 import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
-import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
+import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, suggestProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
 
 type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number; seconds?: number } | null;
 export type AngleView = {
@@ -50,12 +50,15 @@ function ProductLine({ projectId, initial, onSaved }: { projectId: string; initi
         onChange={(e) => { setText(e.target.value); setMsg(null); }}
         rows={2}
         maxLength={600}
-        placeholder="e.g. Kids contour pillow, ages 2+, sized by age"
+        placeholder="One line on what you sell and who buys it. Or press Write it for me and the AI reads your files and suggests one."
         className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
       />
       <div className="flex flex-wrap items-center gap-3">
         <Button size="sm" variant="secondary" disabled={pending} onClick={() => start(async () => { const r = await saveProductLineAction(projectId, text); setMsg(r.ok ? { ok: true, text: "Saved" } : { ok: false, text: r.error ?? "Could not save." }); if (r.ok) onSaved(); })}>
           {pending ? "Saving…" : "Save product line"}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { setMsg(null); const r = await suggestProductLineAction(projectId); if (r.text) { setText(r.text); setMsg({ ok: true, text: "Suggested from your files. Check it, change anything, then press Save." }); } else setMsg({ ok: false, text: r.error ?? "Could not write one." }); })}>
+          <Wand2 className="h-4 w-4" /> Write it for me
         </Button>
         {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-success" : "text-danger"}`}>{msg.text}</span>}
       </div>
@@ -64,15 +67,15 @@ function ProductLine({ projectId, initial, onSaved }: { projectId: string; initi
   );
 }
 
-export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean }) {
+export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false, initialLikeId = null, initialMode = "broad" }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean; initialLikeId?: string | null; initialMode?: "broad" | "deep" }) {
   const router = useRouter();
   const [lineTick, setLineTick] = useState(0);
   const [live, setLive] = useState<Job>(job);
   const [count, setCount] = useState(10);
   const [countText, setCountText] = useState("10");
-  const [mode, setMode] = useState<"broad" | "deep">("broad");
+  const [mode, setMode] = useState<"broad" | "deep">(initialMode);
   const [focus, setFocus] = useState("");
-  const [like, setLike] = useState<AngleView | null>(null);
+  const [like, setLike] = useState<AngleView | null>(() => angles.find((x) => x.id === initialLikeId) ?? null);
   const [plan, setPlan] = useState<PlanDto | null>(null);
   const [blocked, setBlocked] = useState<string | null>(null);
   const [creditLine, setCreditLine] = useState("");
@@ -381,80 +384,25 @@ function AngleCard({ projectId, a, rank, onMore, onDeep }: { projectId: string; 
       ) : (
         <>
           <h3 className="mt-3 break-words text-[17px] font-semibold leading-snug tracking-tight">{d.angle}</h3>
-          {d.ladder ? (
-            <dl className="mt-2 space-y-1 text-sm">
-              {([["Surface", d.ladder.surface], ["Emotional", d.ladder.emotional], ["Identity", d.ladder.identity]] as const).filter(([, v]) => v).map(([k, v]) => (
-                <div key={k} className="flex gap-2"><dt className="w-[4.5rem] shrink-0 font-medium text-fg">{k}</dt><dd className="min-w-0 break-words text-muted">{v}</dd></div>
-              ))}
-            </dl>
+          {d.ladder?.emotional ? (
+            <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">Feels:</span> {d.ladder.emotional}</p>
           ) : (
             d.desire && <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">Desire:</span> {d.desire}</p>
           )}
-          {d.inaction && <p className="mt-2 break-words text-sm text-muted"><span className="font-medium text-fg">If they do nothing:</span> {d.inaction}</p>}
-          {d.mechanism && <p className="mt-1 break-words text-sm text-muted"><span className="font-medium text-fg">Mechanism:</span> {d.mechanism}</p>}
           {d.hooks.length > 0 && (
             <ol className="mt-3 space-y-1.5 text-sm">
-              {d.hooks.map((h, i) => (
+              {d.hooks.slice(0, 3).map((h, i) => (
                 <li key={i} className="rounded-xl bg-surface-2 px-3 py-2 break-words">{h}</li>
               ))}
+              {d.hooks.length > 3 && <li className="px-1 text-xs text-muted">+ {d.hooks.length - 3} more hooks on the full page</li>}
             </ol>
           )}
+          {d.deep && <p className="mt-3 text-xs text-accent">Includes a full angle brief.</p>}
+          <Link href={`/projects/${projectId}/angles/${a.id}`} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline">
+            Show more information <ArrowRight className="h-4 w-4" />
+          </Link>
         </>
       )}
-
-      {d.deep && (
-        <details open className="mt-3 rounded-xl bg-surface-2/60 p-3 text-sm">
-          <summary className="cursor-pointer font-medium text-accent">Full angle brief</summary>
-          <div className="mt-3 space-y-4 text-muted">
-            {d.deep.story && <div><p className="font-medium text-fg">The avatar</p><p className="mt-1 whitespace-pre-wrap break-words">{d.deep.story}</p></div>}
-            {(d.deep.belief_now || d.deep.belief_needed) && (
-              <div>
-                <p className="font-medium text-fg">Belief to move</p>
-                {d.deep.belief_now && <p className="mt-1 break-words"><span className="text-fg">Believes now:</span> {d.deep.belief_now}</p>}
-                {d.deep.belief_steps.length > 0 && <ol className="my-1 list-decimal space-y-1 pl-5">{d.deep.belief_steps.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ol>}
-                {d.deep.belief_needed && <p className="break-words"><span className="text-fg">Needs to believe:</span> {d.deep.belief_needed}</p>}
-              </div>
-            )}
-            {d.deep.objections.length > 0 && (
-              <div>
-                <p className="font-medium text-fg">Top objections and answers</p>
-                <ul className="mt-1 space-y-2">{d.deep.objections.map((o, i) => <li key={i} className="break-words"><span className="text-fg">{o.objection}</span><br />{o.answer}</li>)}</ul>
-              </div>
-            )}
-            {d.deep.proof_needed.length > 0 && (
-              <div><p className="font-medium text-fg">Proof we would need</p><ul className="mt-1 list-disc space-y-1 pl-5">{d.deep.proof_needed.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ul></div>
-            )}
-            {Object.values(d.deep.outline).some(Boolean) && (
-              <div>
-                <p className="font-medium text-fg">Ad outline</p>
-                <dl className="mt-1 space-y-1">
-                  {([["Hook", d.deep.outline.hook], ["Problem", d.deep.outline.problem], ["Why", d.deep.outline.why], ["Product", d.deep.outline.product], ["Result", d.deep.outline.result], ["Offer", d.deep.outline.offer]] as const).filter(([, v]) => v).map(([k, v]) => (
-                    <div key={k} className="flex gap-2"><dt className="w-16 shrink-0 text-fg">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
-                  ))}
-                </dl>
-              </div>
-            )}
-          </div>
-        </details>
-      )}
-
-      <details className="mt-3 text-sm">
-        <summary className="cursor-pointer text-accent">Why this angle</summary>
-        <div className="mt-2 space-y-2 text-muted">
-          {d.why && <p className="break-words">{d.why}</p>}
-          {d.evidence.length > 0 && (
-            <ul className="list-disc space-y-1 pl-5">
-              {d.evidence.map((e, i) => (
-                <li key={i} className="break-words">{e}</li>
-              ))}
-            </ul>
-          )}
-          {d.test_type && <p><span className="font-medium text-fg">How to test:</span> {d.test_type}</p>}
-          {d.risks.length > 0 && <p className="break-words"><span className="font-medium text-fg">Needs care:</span> {d.risks.join("; ")}</p>}
-          {d.sources.length > 0 && <p className="break-words text-xs">From: {d.sources.join(", ")}</p>}
-          {d.rules.length > 0 && <p className="break-words text-xs">Rules applied: {d.rules.join(", ")}</p>}
-        </div>
-      </details>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <Button variant="secondary" size="sm" onClick={onMore}><Sparkles className="h-4 w-4" /> More like this</Button>

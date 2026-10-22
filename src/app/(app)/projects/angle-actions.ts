@@ -7,10 +7,13 @@ import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { getProject } from "@/lib/projects";
 import { LIMITS } from "@/lib/uploads/limits";
-import { getAiConfig, readinessAngles } from "@/lib/ai/settings";
+import { getAiConfig, readiness, readinessAngles } from "@/lib/ai/settings";
 import { latestAngleJob, parseOpts, planAngles, startAngles } from "@/lib/ai/angles";
 import { applyEdit, type Angle } from "@/lib/ai/angles-shape";
-import { usageFor } from "@/lib/usage";
+import { generate } from "@/lib/ai/gemini";
+import { recordUsage } from "@/lib/ai/guard";
+import { costAud } from "@/lib/ai/cost";
+import { assertWithinLimit, usageFor } from "@/lib/usage";
 import { aud } from "@/lib/usage-limit";
 
 export type AngleState = { error?: string; ok?: boolean } | undefined;
@@ -65,6 +68,7 @@ export async function favouriteAngleAction(projectId: string, id: string) {
   if (!project || !isId(id)) return;
   await query("update project_angles set favourite = not favourite where id = $1 and project_id = $2", [id, project.id]);
   revalidatePath(`/projects/${project.id}`);
+  revalidatePath(`/projects/${project.id}/angles/${id}`);
 }
 
 export async function deleteAngleAction(projectId: string, id: string) {
@@ -85,6 +89,55 @@ export async function saveProductLineAction(projectId: string, text: string): Pr
   await query("update projects set description = $2, updated_at = now() where id = $1", [project.id, line]);
   revalidatePath(`/projects/${project.id}`);
   return { ok: true };
+}
+
+const PRODUCT_LINE_SYSTEM = `You are the PRODUCT LINE WRITER. From the text you are given (research notes, customer threads, product pages), write ONE short line, at most 25 words, saying what the product is and who buys it, like: "Kids contour pillow, ages 2+, sized by age, bought by parents of kids who sleep badly". Use only what the text supports. Do not invent a product or a brand. If the text does not make clear what is being sold, reply exactly: UNCLEAR. Reply with the line only, no quotes, no extra words.`;
+
+/** Asks the cheap AI provider to read what is already in the project and suggest the one-line product description. */
+export async function suggestProductLineAction(projectId: string): Promise<{ text?: string; error?: string }> {
+  const me = await requireUser();
+  const project = await getProject(me, projectId);
+  if (!project) return { error: "That project wasn't found." };
+  const cfg = await getAiConfig();
+  const ready = readiness(cfg);
+  if (!ready.ok) return { error: ready.reason };
+  try {
+    await assertWithinLimit(me.id, me.role);
+  } catch {
+    return { error: "You've used up your AI credit." };
+  }
+  const files = (await query<{ file_name: string; summary: string | null; t: string }>(
+    "select file_name, summary, substr(extracted_text, 1, 900) as t from project_files where project_id = $1 order by (summary is null), file_name limit 12",
+    [project.id],
+  )).rows;
+  const notes = (await query<{ body: string }>("select body from project_context where project_id = $1", [project.id])).rows[0]?.body ?? "";
+  const material = [
+    `Project name: ${project.name}`,
+    project.description ? `Typed so far: ${project.description}` : "",
+    notes ? `Owner notes:\n${notes.slice(0, 1500)}` : "",
+    ...files.map((f) => `## ${f.file_name}\n${(f.summary ?? f.t).slice(0, 700)}`),
+  ].filter(Boolean).join("\n\n").slice(0, 9000);
+  if (material.length < 60) return { error: "There is nothing to read yet. Add research files first, or type the product line yourself." };
+  try {
+    const res = await generate({ model: ready.reader.model, system: PRODUCT_LINE_SYSTEM, prompt: material, maxOutputTokens: 400 });
+    await recordUsage({ userId: me.id, workspaceId: me.workspaceId, jobId: null, task: "angles:productline", provider: "gemini", model: ready.reader.model, inputTokens: res.inputTokens, outputTokens: res.outputTokens, costAud: costAud(res.inputTokens, res.outputTokens, ready.reader, ready.usdAud) });
+    const line = clean(res.text.replace(/^["'\s]+|["'\s]+$/g, ""), 300);
+    if (!line || /^unclear\b/i.test(line)) return { error: "I couldn't tell what is being sold from your files. Type it yourself in one line." };
+    return { text: line };
+  } catch {
+    return { error: "The AI couldn't answer just now. Try again, or type it yourself." };
+  }
+}
+
+export async function deleteAngleBackAction(formData: FormData) {
+  const me = await requireUser();
+  const project = await getProject(me, String(formData.get("projectId") ?? ""));
+  const id = String(formData.get("id") ?? "");
+  if (!project) redirect("/angles");
+  if (isId(id)) await query("delete from project_angles where id = $1 and project_id = $2", [id, project.id]);
+  revalidatePath(`/projects/${project.id}`);
+  revalidatePath("/angles");
+  redirect(`/projects/${project.id}?tab=angles`);
 }
 
 export async function deleteRunAction(projectId: string, runId: string) {
@@ -108,6 +161,7 @@ export async function saveAngleAction(_p: AngleState, formData: FormData): Promi
   if (angle.length < 3) return { error: "The angle can't be empty." };
   const next = applyEdit(row.data, { angle, hooks: String(formData.get("hooks") ?? "") });
   await query("update project_angles set data = $3, edited = true where id = $1 and project_id = $2", [id, project.id, JSON.stringify(next)]);
+  revalidatePath(`/projects/${project.id}/angles/${id}`);
   revalidatePath(`/projects/${project.id}`);
   return { ok: true };
 }

@@ -76,19 +76,25 @@ HARD RULES FOR THIS JOB:
 3. Never skip a group of buyers just because their topic is medical (surgery, sleep studies, mouth breathing, pain, tired kids). Write for them with a kind of medical promise only: comfort, fit, support, "one thing you can change tonight". No cures, no treatment results, no diagnosis, no promise that it fixes a condition.
 4. DESIRE LADDER on every angle, three levels, each pulled from real words in the research where possible:
    surface = what they want the product to do;
-   emotional = how they want to feel (for example "stop checking on them at 2am");
-   identity = who they want to be (for example "the parent who did something").
+   emotional = a FEELING WITH A SCENE IN IT, not a mild inconvenience (for example "stop checking on them at 2am", "walk in at 11pm and see them settled in the middle of their pillow", "get my happy kid back in the morning");
+   identity = who they want to be (for example "the parent who noticed the small thing everyone else ignores").
    The angle line and the hooks lead with the emotional or identity layer. The product feature only comes in as the "because".
-5. COST OF DOING NOTHING on every angle ("inaction"): what keeps happening if they do not act, in their words.
-6. HOOKS: at least 2 of every 3 hooks open on a moment or a feeling, not a feature. No hook may be only a feature list.
-7. No repeats: merge angles that share the same core problem and the same person into one stronger angle. Use plain, specific sub-avatar names.
-8. The first item in each angle's "evidence" must say how common it is, like "Seen in about 6 of 30 files:" followed by the best supporting quote or fact.
+5. STAKES (the WHY CHAIN) on every angle, in "chain": connect the visible sign to something the buyer cares about with a NON-MEDICAL chain: sign = what they see; physical = what that does physically (positions, pressure, bending, sliding); night = what that does to their night; next_day = what the buyer feels the next day. Example: head slides off the pillow -> neck bent on the mattress -> they keep shifting and sleep keeps breaking -> you get the cranky kid at breakfast. Never use a diagnosis or a medical outcome in the chain.
+6. COST OF DOING NOTHING ("inaction") is the BUYER'S cost, not the symptom repeated: more 2am checks, more tired mornings, more pillows bought and abandoned, more worry. In their words.
+7. RESULT ("result") is the after-picture the buyer wants, said as hope and never as a guarantee. Example: "You check the bed at 11pm and they're still in the middle of their pillow. Breakfast stops being a battle."
+8. MECHANISM is 2 to 3 plain sentences that follow the why chain. It must sell, not hedge.
+9. SELLING PARTS NEVER ARGUE AGAINST THE PRODUCT. The avatar story, desire ladder, why chain, cost of doing nothing, result, mechanism, belief chain, hooks and ad outline must all be positive and on the product's side. Never write lines like "it will not fix...", "you did not buy a cure", "if they still toss, that is fine", and never write a hook that mentions a competitor's scare ads, brings in a doubt ("you're still not sure...") or says what the product cannot do.
+10. GUARDRAILS GO IN THEIR OWN FIELDS: every "do not claim this" note goes in "avoid" (a list of short plain notes, for example "Do not say it helps breathing or snoring", "Do not promise better sleep results"). Competitor and market observations go in "market_note". Nothing else may carry a warning.
+11. BELIEF CHAIN (Sniper) ends on what they need to believe to buy, stated positively. Never end it on what the product will not do.
+12. HOOKS: at least 2 of every 3 hooks open on a moment or a feeling, not a feature. No hook may be only a feature list.
+13. No repeats: merge angles that share the same core problem and the same person into one stronger angle. Use plain, specific sub-avatar names.
+14. The first item in each angle's "evidence" must say how common it is, like "Seen in about 6 of 30 files:" followed by the best supporting quote or fact.
 
 COURSE RULES (apply them, do not quote them; cite the rule codes you used):
 ${lines.join("\n") || "(none loaded)"}
 
 OUTPUT FORMAT. Reply with JSON only:
-{"coverage":[{"theme":"short theme name","files":number of files that mention it,"status":"covered or skipped","note":"which angle covers it, or why it was skipped"}],"angles":[{"sub_avatar":"who exactly","desire":"the core desire or pain from their point of view","angle":"the angle in one clear line (how we sell the product to this person, not a format)","awareness":"Unaware | Problem aware | Solution aware | Product aware | Most aware","ladder":{"surface":"what they want the product to do","emotional":"how they want to feel","identity":"who they want to be"},"inaction":"what keeps happening if they do nothing, in their words","mechanism":"the new mechanism or new information that makes it believable, or empty","hooks":["3 written hooks or headlines (10 in SNIPER mode), strongest first, using the customer's own words where the research has them"],"evidence":["up to 4 short facts or quotes from the research that support it"],"test_type":"how to test it (net-new angle, iteration, awareness test...)","risks":["claims that need proof or compliance care"],"why":"one or two sentences: why this angle, which rules and which research drove it","sources":["exact research file names the evidence came from"],"rules":["rule codes you applied, exactly as written in brackets above"],"deep":(include ONLY in SNIPER mode) {"story":"the avatar as a short story, 120-200 words, in their own words","belief_now":"what they believe now","belief_needed":"the belief they need to buy","belief_steps":["the steps that move them from one belief to the other"],"objections":[{"objection":"their top objection","answer":"the answer, with proof from the research"}],"proof_needed":["proof we would need to show"],"outline":{"hook":"","problem":"","why":"","product":"","result":"","offer":""}}}],"missing":["up to 6 specific things that would make the angles stronger"],"note":"one sentence on how strong the input was"}
+{"coverage":[{"theme":"short theme name","files":number of files that mention it,"status":"covered or skipped","note":"which angle covers it, or why it was skipped"}],"angles":[{"sub_avatar":"who exactly","desire":"the core desire or pain from their point of view","angle":"the angle in one clear line (how we sell the product to this person, not a format)","awareness":"Unaware | Problem aware | Solution aware | Product aware | Most aware","ladder":{"surface":"what they want the product to do","emotional":"how they want to feel","identity":"who they want to be"},"chain":{"sign":"what they see","physical":"what it does physically","night":"what it does to their night","next_day":"what the buyer feels the next day"},"inaction":"the buyer's cost of doing nothing, in their words","result":"the hopeful after-picture, never a guarantee","mechanism":"2 to 3 plain sentences that follow the chain, or empty","avoid":["short notes on what NOT to claim in ads"],"market_note":"competitor or market observation, or empty","hooks":["3 written hooks or headlines (10 in SNIPER mode), strongest first, using the customer's own words where the research has them"],"evidence":["up to 4 short facts or quotes from the research that support it"],"test_type":"how to test it (net-new angle, iteration, awareness test...)","why":"one or two sentences: why this angle, which rules and which research drove it","sources":["exact research file names the evidence came from"],"rules":["rule codes you applied, exactly as written in brackets above"],"deep":(include ONLY in SNIPER mode) {"story":"the avatar as a short story, 120-200 words, in their own words","belief_now":"what they believe now","belief_needed":"the belief they need to buy","belief_steps":["the steps that move them from one belief to the other"],"objections":[{"objection":"their top objection","answer":"the answer, with proof from the research"}],"proof_needed":["proof we would need to show"],"outline":{"hook":"","problem":"","why":"","product":"","result":"","offer":""}}}],"missing":["up to 6 specific things that would make the angles stronger"],"note":"one sentence on how strong the input was"}
 Put the strongest angles first. No markdown, no HTML.`;
   const value = { system, ruleCodes: rows.map((r) => r.code), usedPrompt: !!prompt };
   staticCache = { at: Date.now(), value };
@@ -254,6 +260,16 @@ export async function getAngles(projectId: string): Promise<AngleRow[]> {
       [projectId],
     )
   ).rows;
+}
+
+export async function getAngle(projectId: string, id: string): Promise<AngleRow | null> {
+  const r = await query<AngleRow>(
+    `select a.id, a.data, a.favourite, a.edited, a.created_at, a.job_id, coalesce(j.created_at, a.created_at) as run_at
+       from project_angles a left join ai_jobs j on j.id = a.job_id
+      where a.project_id = $1 and a.id = $2`,
+    [projectId, id],
+  );
+  return r.rows[0] ?? null;
 }
 
 export async function latestAngleJob(projectId: string) {

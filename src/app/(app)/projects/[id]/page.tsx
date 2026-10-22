@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: p?.name ?? "Project" };
 }
 
-export default async function ProjectPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+export default async function ProjectPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; like?: string; deep?: string }> }) {
   const me = await requireUser();
   const { id } = await params;
   const project = await getProject(me, id);
@@ -298,7 +298,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               )}
             </div>
           </Card>
-          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} coverage={angleCoverage} productLine={project.description ?? ""} showProductLine={!hasBriefForAngles} />
+          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} coverage={angleCoverage} productLine={project.description ?? ""} showProductLine={!hasBriefForAngles} initialLikeId={sp.like ?? null} initialMode={sp.deep === "1" ? "deep" : "broad"} />
         </div>
       )}
       {tab === "scripts" && <EmptyState icon={PenLine} title="No scripts yet" description="Scripts for this product will be saved here. The Script Writer is built in Phase 4." />}
