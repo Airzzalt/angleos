@@ -3,6 +3,7 @@ import { query } from "../db";
 
 export const SETTING_KEYS = [
   "ai_enabled", // "1" or "0": a kill switch for every AI feature
+  "gemini_enabled", // "1" or "0": switch just the Gemini provider off
   "reader_model", // reads and sorts files (cheap and fast)
   "writer_model", // writes the brief
   "reader_in_usd", "reader_out_usd", // US$ per million tokens
@@ -18,6 +19,7 @@ export type SettingKey = (typeof SETTING_KEYS)[number];
 
 export const DEFAULTS: Record<SettingKey, string> = {
   ai_enabled: "1",
+  gemini_enabled: "1",
   reader_model: "",
   writer_model: "",
   reader_in_usd: "",
@@ -61,6 +63,7 @@ export type Ready =
 /** Everything needed before any AI call: switched on, key present, models and prices set. */
 export function readiness(cfg: AiConfig): Ready {
   if (cfg.ai_enabled !== "1") return { ok: false, reason: "AI is switched off by the admin." };
+  if (cfg.gemini_enabled !== "1") return { ok: false, reason: "Gemini is switched off by the admin." };
   if (!process.env.GEMINI_API_KEY && !isTestMode()) return { ok: false, reason: "The AI key has not been added yet." };
   if (!cfg.reader_model || !cfg.writer_model) return { ok: false, reason: "The admin has not chosen the AI models yet." };
   const reader = { model: cfg.reader_model, inUsd: num(cfg.reader_in_usd, NaN), outUsd: num(cfg.reader_out_usd, NaN) };

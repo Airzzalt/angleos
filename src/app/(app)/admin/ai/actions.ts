@@ -19,7 +19,7 @@ export async function saveAiSettingsAction(_p: AiFormState, formData: FormData):
   for (const k of SETTING_KEYS) {
     if (!formData.has(k)) continue;
     const v = String(formData.get(k) ?? "").trim();
-    if (k === "ai_enabled") next[k] = formData.getAll(k).includes("1") ? "1" : "0";
+    if (k === "ai_enabled" || k === "gemini_enabled") next[k] = formData.getAll(k).includes("1") ? "1" : "0";
     else if (k === "reader_model" || k === "writer_model") {
       if (v && !MODEL.test(v)) return { error: `That doesn't look like a model name (${k.replace("_", " ")}).` };
       next[k] = v;
