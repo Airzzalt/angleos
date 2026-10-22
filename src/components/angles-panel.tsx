@@ -9,7 +9,7 @@ import { Badge, Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import type { Angle } from "@/lib/ai/angles-shape";
 import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
-import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, suggestProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
+import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, saveClaimLevelAction, suggestProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
 
 type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number; seconds?: number } | null;
 export type AngleView = {
@@ -67,12 +67,13 @@ function ProductLine({ projectId, initial, onSaved }: { projectId: string; initi
   );
 }
 
-export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false, initialLikeId = null, initialMode = "broad" }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean; initialLikeId?: string | null; initialMode?: "broad" | "deep" }) {
+export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false, claimLevel = "standard", initialLikeId = null, initialMode = "broad" }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean; claimLevel?: string; initialLikeId?: string | null; initialMode?: "broad" | "deep" }) {
   const router = useRouter();
   const [lineTick, setLineTick] = useState(0);
   const [live, setLive] = useState<Job>(job);
   const [count, setCount] = useState(10);
   const [countText, setCountText] = useState("10");
+  const [level, setLevel] = useState(claimLevel);
   const [mode, setMode] = useState<"broad" | "deep">(initialMode);
   const [focus, setFocus] = useState("");
   const [like, setLike] = useState<AngleView | null>(() => angles.find((x) => x.id === initialLikeId) ?? null);
@@ -138,7 +139,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
         <div className="space-y-5 p-6">
           <div>
             <h2 className="text-[17px] font-semibold tracking-tight">Generate angles</h2>
-            <p className="mt-0.5 text-sm text-muted">Uses your research files and notes (a brief helps but is not needed), your Evolve angle method and the course rules in the knowledge base.</p>
+            <p className="mt-0.5 text-sm text-muted">Uses your research files and notes (a brief helps but is not needed) together with our built-in knowledge base.</p>
           </div>
           {showProductLine && <ProductLine projectId={projectId} initial={productLine} onSaved={() => { setLineTick((t) => t + 1); router.refresh(); }} />}
 
@@ -211,6 +212,19 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
                 </div>
               </div>
               <div>
+                <Label htmlFor="claim-level">How bold can the ads be?</Label>
+                <Select
+                  id="claim-level"
+                  value={level}
+                  onChange={(e) => { const v = e.target.value; setLevel(v); void saveClaimLevelAction(projectId, v); }}
+                >
+                  <option value="strict">Strict: comfort, fit and support only</option>
+                  <option value="standard">Standard: can describe the night and next day, results as hope</option>
+                  <option value="bold">Bold: more direct, for experienced advertisers</option>
+                </Select>
+                <p className="mt-1 text-xs text-muted">Saved for this project. No setting ever allows medical, face or airway claims, or claiming to treat or cure.</p>
+              </div>
+              <div>
                 <Label htmlFor="angle-focus">Anything to focus on? (optional)</Label>
                 <Input id="angle-focus" value={focus} maxLength={600} onChange={(e) => setFocus(e.target.value)} placeholder="e.g. busy mums who sleep badly. No medical claims." />
               </div>
@@ -272,6 +286,14 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
                 <span className="min-w-0 flex-1 break-words font-medium">{c.theme}</span>
                 <span className="text-xs text-muted">{c.files} of {fileCount} files</span>
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${c.status === "skipped" ? "bg-surface-3 text-muted" : "bg-accent-soft text-accent"}`}>{c.status === "skipped" ? "Skipped" : "Covered"}</span>
+                <button
+                  type="button"
+                  className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs text-accent transition hover:bg-accent-soft"
+                  aria-label={`Go deep on ${c.theme}`}
+                  onClick={() => { setMode("deep"); setLike(null); setFocus(`Go deep on this audience and theme: ${c.theme}`); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                >
+                  <Target className="h-3.5 w-3.5" /> Go deep
+                </button>
                 {c.note && <span className="basis-full break-words text-xs text-muted">{c.note}</span>}
               </li>
             ))}

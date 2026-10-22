@@ -298,7 +298,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               )}
             </div>
           </Card>
-          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} coverage={angleCoverage} productLine={project.description ?? ""} showProductLine={!hasBriefForAngles} initialLikeId={sp.like ?? null} initialMode={sp.deep === "1" ? "deep" : "broad"} />
+          <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} coverage={angleCoverage} productLine={project.description ?? ""} showProductLine={!hasBriefForAngles} claimLevel={project.claim_level} initialLikeId={sp.like ?? null} initialMode={sp.deep === "1" ? "deep" : "broad"} />
         </div>
       )}
       {tab === "scripts" && <EmptyState icon={PenLine} title="No scripts yet" description="Scripts for this product will be saved here. The Script Writer is built in Phase 4." />}

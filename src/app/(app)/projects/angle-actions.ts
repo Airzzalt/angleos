@@ -140,6 +140,16 @@ export async function deleteAngleBackAction(formData: FormData) {
   redirect(`/projects/${project.id}?tab=angles`);
 }
 
+export async function saveClaimLevelAction(projectId: string, level: string): Promise<{ ok?: boolean; error?: string }> {
+  const me = await requireUser();
+  const project = await getProject(me, projectId);
+  if (!project) return { error: "That project wasn't found." };
+  if (!["strict", "standard", "bold"].includes(level)) return { error: "Pick Strict, Standard or Bold." };
+  await query("update projects set claim_level = $2, updated_at = now() where id = $1", [project.id, level]);
+  revalidatePath(`/projects/${project.id}`);
+  return { ok: true };
+}
+
 export async function deleteRunAction(projectId: string, runId: string) {
   const me = await requireUser();
   const project = await getProject(me, projectId);

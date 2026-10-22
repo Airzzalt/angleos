@@ -125,6 +125,7 @@ function fakeXai(o: GenOpts): GenResult {
     inaction: "Fake cost of doing nothing",
     chain: { sign: "Fake sign", physical: "Fake physical effect", night: "Fake night effect", next_day: "Fake next day" },
     result: "Fake hopeful result",
+    test_plan: { creatives: [`Fake creative hook 1`, `Fake creative hook 2`, `Fake creative hook 3`], primary_texts: ["Fake primary text one", "Fake primary text two"], headlines: ["Fake headline one", "Fake headline two"], note: "Fake test note" },
     avoid: ["Fake do-not-claim note"],
     market_note: "Fake market note",
     hooks: deep ? Array.from({ length: 10 }, (_, k) => `Fake deep hook ${k + 1}`) : [`Fake hook A${i + 1}`, `Fake hook B${i + 1}`, `Fake hook C${i + 1}`],
@@ -132,7 +133,7 @@ function fakeXai(o: GenOpts): GenResult {
     evidence: ["Fake evidence line"],
     test_type: "Net-new angle test",
     risks: ["Needs proof for any health claim"],
-    why: "Chosen because the research repeats this pain.",
+    why: "Chosen because the research repeats this pain (CORE-04).",
     sources: names,
     rules,
   }));

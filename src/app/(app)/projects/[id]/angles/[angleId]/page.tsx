@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getProject } from "@/lib/projects";
 import { getAngle } from "@/lib/ai/angles";
+import { query } from "@/lib/db";
 import { Badge, Card } from "@/components/ui/card";
 import { AngleActionsBar } from "@/components/angle-actions-bar";
 
@@ -30,7 +31,12 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
   if (!row) notFound();
   const d = row.data;
   const avoid = [...(d.avoid ?? []), ...d.risks];
+  // Only the admin can see which course rules were used. Everyone else only knows there is a knowledge base.
+  const ruleNames = me.role === "admin" && d.rules.length
+    ? (await query<{ rule_code: string; title: string }>("select rule_code, title from playbook_rules where rule_code = any($1::text[])", [d.rules])).rows
+    : [];
 
+  const tp = d.test_plan;
   const copyText = [
     d.angle,
     d.sub_avatar && `Who: ${d.sub_avatar}`,
@@ -39,7 +45,8 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
     d.inaction && `If they do nothing: ${d.inaction}`,
     d.result && `The result: ${d.result}`,
     d.mechanism && `Mechanism: ${d.mechanism}`,
-    d.hooks.length && `Hooks:\n${d.hooks.map((h, i) => `${i + 1}. ${h}`).join("\n")}`,
+    tp && `Test plan (3-2-2):\nCreatives: ${tp.creatives.join(" | ")}\nPrimary texts: ${tp.primary_texts.join(" | ")}\nHeadlines: ${tp.headlines.join(" | ")}${tp.note ? `\n${tp.note}` : ""}`,
+    d.hooks.length && `Hook bank:\n${d.hooks.map((h, i) => `${i + 1}. ${h}`).join("\n")}`,
     d.deep?.story && `The avatar:\n${d.deep.story}`,
     d.deep?.belief_steps.length && `Belief steps:\n${d.deep.belief_steps.map((x, i) => `${i + 1}. ${x}`).join("\n")}`,
     d.deep?.belief_needed && `Needs to believe: ${d.deep.belief_needed}`,
@@ -101,8 +108,18 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
 
         {d.mechanism && <Block title="Mechanism"><p className="break-words text-fg">{d.mechanism}</p></Block>}
 
+        {tp && (
+          <Block title="Test plan (3-2-2)">
+            <p className="text-xs">Three creatives, two primary texts and two headlines. Everything else stays in the hook bank for later rounds.</p>
+            {tp.creatives.length > 0 && <div><p className="font-medium text-fg">3 creatives (the strongest hooks)</p><ol className="mt-1 list-decimal space-y-1 pl-5">{tp.creatives.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ol></div>}
+            {tp.primary_texts.length > 0 && <div><p className="font-medium text-fg">2 primary texts</p><ul className="mt-1 space-y-2">{tp.primary_texts.map((x, i) => <li key={i} className="whitespace-pre-wrap break-words rounded-xl bg-surface-2 px-3 py-2">{x}</li>)}</ul></div>}
+            {tp.headlines.length > 0 && <div><p className="font-medium text-fg">2 headlines</p><ul className="mt-1 list-disc space-y-1 pl-5">{tp.headlines.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ul></div>}
+            {tp.note && <p className="break-words">{tp.note}</p>}
+          </Block>
+        )}
+
         {d.hooks.length > 0 && (
-          <Block title={`Hooks (${d.hooks.length})`}>
+          <Block title={`Hook bank (${d.hooks.length})`}>
             <ol className="space-y-1.5">
               {d.hooks.map((h, i) => (
                 <li key={i} className="break-words rounded-xl bg-surface-2 px-3 py-2 text-fg">{h}</li>
@@ -150,9 +167,9 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
           {d.evidence.length > 0 && (
             <ul className="list-disc space-y-1 pl-5">{d.evidence.map((e, i) => <li key={i} className="break-words">{e}</li>)}</ul>
           )}
-          {d.test_type && <p><span className="font-medium text-fg">How to test:</span> {d.test_type}</p>}
+          {d.test_type && <p><span className="font-medium text-fg">Test type:</span> {d.test_type}</p>}
           {d.sources.length > 0 && <p className="break-words text-xs">From: {d.sources.join(", ")}</p>}
-          {d.rules.length > 0 && <p className="break-words text-xs">Rules applied: {d.rules.join(", ")}</p>}
+          {ruleNames.length > 0 && <p className="break-words text-xs">Admin only, rules used: {ruleNames.map((r) => `${r.title} (${r.rule_code})`).join("; ")}</p>}
         </Block>
 
         {avoid.length > 0 && (

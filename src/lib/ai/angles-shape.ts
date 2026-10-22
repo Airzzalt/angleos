@@ -28,6 +28,8 @@ export type Angle = {
   avoid?: string[];
   /** Competitor and market notes. Kept apart from the selling parts. */
   market_note?: string;
+  /** The 3-2-2 test plan: the 3 strongest hooks as 3 creatives, 2 primary texts, 2 headlines. The full hook list stays as a hook bank. */
+  test_plan?: { creatives: string[]; primary_texts: string[]; headlines: string[]; note: string };
   /** Only on a Sniper (deep dive) angle: the full brief. */
   deep?: DeepBrief;
 };
@@ -43,6 +45,48 @@ export type DeepBrief = {
 };
 
 const clean = (s: unknown, max: number) => String(s ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").replace(/[ \t]+/g, " ").trim().slice(0, max);
+
+/** People must never see rule codes from the knowledge base, so any code that slips into a text is removed. */
+const RULE_REF = /\s*[\[(]?\b(?:CORE|RES|ANGLE|MECH|AWARE|BELIEF|HOOK|FORMAT|SCRIPT|EMO|VISUAL|STATIC|OFFER|TEST|BRIEF|ETHICS|ANALYZE|BREAKDOWNS|AIWORK|RMBC|MISC|BA)-\d{1,3}\b[\])]?/g;
+export function scrubRuleRefs(s: string): string {
+  return s.replace(RULE_REF, "").replace(/\s{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
+}
+function scrubDeep<T>(v: T, skip = "rules"): T {
+  if (typeof v === "string") return scrubRuleRefs(v) as unknown as T;
+  if (Array.isArray(v)) return v.map((x) => scrubDeep(x, skip)) as unknown as T;
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) out[k] = k === skip ? x : scrubDeep(x, skip);
+    return out as T;
+  }
+  return v;
+}
+
+/** The parts of an angle the final read-through may reword (never evidence, sources, rules or claims to avoid). */
+export function polishable(a: Angle) {
+  return { angle: a.angle, desire: a.desire, ladder: a.ladder, chain: a.chain, inaction: a.inaction, result: a.result, mechanism: a.mechanism, why: a.why, hooks: a.hooks, test_plan: a.test_plan, deep: a.deep };
+}
+function mergeText(orig: unknown, pol: unknown): unknown {
+  if (typeof orig === "string") {
+    if (typeof pol !== "string") return orig;
+    const t = scrubRuleRefs(clean(pol, Math.min(2500, orig.length * 2 + 120)));
+    return t || orig;
+  }
+  if (Array.isArray(orig)) return Array.isArray(pol) && pol.length === orig.length ? orig.map((o, i) => mergeText(o, pol[i])) : orig;
+  if (orig && typeof orig === "object") {
+    const p = (pol && typeof pol === "object" ? pol : {}) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(orig as Record<string, unknown>).map(([k, v]) => [k, mergeText(v, p[k])]));
+  }
+  return orig;
+}
+/** Takes the edited wording back, but only where the structure matches exactly. Anything odd keeps the original. */
+export function mergePolish(a: Angle, polished: unknown): Angle {
+  const base = polishable(a) as Record<string, unknown>;
+  const merged = mergeText(base, polished) as Record<string, unknown>;
+  const next = { ...a } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(merged)) if (v !== undefined) next[k] = v;
+  return next as Angle;
+}
 
 export type CoverageItem = { theme: string; files: number; status: "covered" | "skipped"; note: string };
 
@@ -118,6 +162,8 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
     const ch = (it.chain && typeof it.chain === "object" ? it.chain : {}) as Record<string, unknown>;
     const chain = { sign: clean(ch.sign, 260), physical: clean(ch.physical, 260), night: clean(ch.night, 260), next_day: clean(ch.next_day, 260) };
     const avoid = list(it.avoid, 8, 260);
+    const tp = (it.test_plan && typeof it.test_plan === "object" ? it.test_plan : {}) as Record<string, unknown>;
+    const test_plan = { creatives: list(tp.creatives, 3, 300), primary_texts: list(tp.primary_texts, 2, 700), headlines: list(tp.headlines, 2, 200), note: clean(tp.note, 400) };
     const ladder = { surface: clean(lad.surface, 300), emotional: clean(lad.emotional, 300), identity: clean(lad.identity, 300) };
     angles.push({
       sub_avatar: clean(it.sub_avatar, 160),
@@ -137,12 +183,13 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
       ...(chain.sign || chain.physical || chain.night || chain.next_day ? { chain } : {}),
       ...(clean(it.result, 400) ? { result: clean(it.result, 400) } : {}),
       ...(avoid.length ? { avoid } : {}),
+      ...(test_plan.creatives.length || test_plan.primary_texts.length || test_plan.headlines.length ? { test_plan } : {}),
       ...(clean(it.market_note, 400) ? { market_note: clean(it.market_note, 400) } : {}),
       ...(deep ? { deep } : {}),
     });
     if (angles.length >= ctx.max) break;
   }
-  return { angles, missing: list(root.missing, 8, 200), note: clean(root.note, 400), coverage: normaliseCoverage(root.coverage, ctx.totalFiles ?? 0) };
+  return { angles: scrubDeep(angles), missing: list(root.missing, 8, 200), note: clean(root.note, 400), coverage: normaliseCoverage(root.coverage, ctx.totalFiles ?? 0) };
 }
 
 /** What the person typed when editing an angle: only the one-line angle and the hooks can change. */

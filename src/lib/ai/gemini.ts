@@ -100,7 +100,9 @@ function fakeGenerate(o: GenOpts): GenResult {
   const inputTokens = Math.ceil((o.system.length + o.prompt.length) / 4);
   if (o.prompt.includes("FAKE-FAIL")) throw new AiError("fake failure");
   let text: string;
-  if (o.system.includes("PRODUCT LINE WRITER")) {
+  if (o.system.includes("ANGLE EDITOR")) {
+    text = o.prompt;
+  } else if (o.system.includes("PRODUCT LINE WRITER")) {
     text = "A ceramic mug for coffee lovers, bought by people who want their drink to stay warm.";
   } else if (o.system.includes("READER")) {
     const items = [...o.prompt.matchAll(/### FILE ([0-9a-f-]{36}) \((.*?)\)\n([\s\S]*?)(?=\n### FILE |$)/g)];

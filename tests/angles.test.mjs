@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normaliseAngles, normaliseCoverage, canonicalAwareness, applyEdit } from "../src/lib/ai/angles-shape.ts";
+import { normaliseAngles, normaliseCoverage, canonicalAwareness, applyEdit, scrubRuleRefs, mergePolish } from "../src/lib/ai/angles-shape.ts";
 
 const ctx = { files: new Set(["reddit.txt", "reviews.md"]), rules: new Set(["ANGLE-01", "HOOK-04"]), max: 3 };
 
@@ -96,4 +96,32 @@ test("the stakes chain, result, claims to avoid and market note are kept apart a
   const none = normaliseAngles({ angles: [{ angle: "y" }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
   assert.equal(none.chain, undefined);
   assert.equal(none.avoid, undefined);
+});
+
+test("rule codes never reach the text people read", () => {
+  assert.equal(scrubRuleRefs("Chosen because of the pain (CORE-04) and also [HOOK-30]."), "Chosen because of the pain and also.");
+  const a = normaliseAngles({ angles: [{ angle: "Sell it ANGLE-01 well", why: "Per TEST-19, do this", rules: ["ANGLE-01"] }] }, { files: new Set(), rules: new Set(["ANGLE-01"]), max: 3 }).angles[0];
+  assert.ok(!/ANGLE-01|TEST-19/.test(a.angle + a.why));
+  assert.deepEqual(a.rules, ["ANGLE-01"]);
+});
+
+test("the 3-2-2 test plan is kept to 3 creatives, 2 primary texts and 2 headlines", () => {
+  const a = normaliseAngles({ angles: [{ angle: "x", test_plan: { creatives: ["a", "b", "c", "d"], primary_texts: ["p1", "p2", "p3"], headlines: ["h1", "h2", "h3"], note: "run it" } }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  assert.equal(a.test_plan.creatives.length, 3);
+  assert.equal(a.test_plan.primary_texts.length, 2);
+  assert.equal(a.test_plan.headlines.length, 2);
+});
+
+test("the final read-through only changes wording and only where the structure matches", () => {
+  const base = normaliseAngles({ angles: [{ angle: "Sell it fast", sub_avatar: "Parent", hooks: ["one", "two"], evidence: ["Seen in 3 of 30 files: quote"], ladder: { surface: "s", emotional: "e", identity: "i" }, why: "because" }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  const ok = mergePolish(base, { angle: "Sell it quickly and calmly.", hooks: ["First hook.", "Second hook."], ladder: { surface: "S.", emotional: "E.", identity: "I." }, evidence: ["CHANGED"], sub_avatar: "CHANGED" });
+  assert.equal(ok.angle, "Sell it quickly and calmly.");
+  assert.deepEqual(ok.hooks, ["First hook.", "Second hook."]);
+  assert.equal(ok.ladder.emotional, "E.");
+  assert.deepEqual(ok.evidence, ["Seen in 3 of 30 files: quote"]);
+  assert.equal(ok.sub_avatar, "Parent");
+  const bad = mergePolish(base, { angle: "", hooks: ["only one"], ladder: "nope" });
+  assert.equal(bad.angle, "Sell it fast");
+  assert.deepEqual(bad.hooks, ["one", "two"]);
+  assert.equal(bad.ladder.surface, "s");
 });
