@@ -20,7 +20,7 @@ function key(): string {
 
 async function call(path: string, init: RequestInit & { timeoutMs?: number }): Promise<unknown> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 240_000);
+  const timer = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 540_000);
   try {
     const res = await fetch(`${BASE}${path}`, { ...init, signal: ctrl.signal, headers: { "content-type": "application/json", authorization: `Bearer ${key()}` } });
     if (!res.ok) {
@@ -36,7 +36,7 @@ async function call(path: string, init: RequestInit & { timeoutMs?: number }): P
     return await res.json();
   } catch (e) {
     if (e instanceof AiError) throw e;
-    if (e instanceof Error && e.name === "AbortError") throw new AiError("The AI took too long to answer.", true);
+    if (e instanceof Error && e.name === "AbortError") throw new AiError("The AI took too long to answer (over 9 minutes). Nothing was lost: run it again, or add fewer files.", false);
     throw new AiError("Could not reach the AI service.", true);
   } finally {
     clearTimeout(timer);
@@ -62,8 +62,8 @@ export async function generateXai(o: GenOpts): Promise<GenResult> {
   if (isTestMode() && o.model.startsWith("fake")) return fakeXai(o);
   // First try the modern field names; if xAI rejects the request shape, retry once in the plainest form.
   const variants = [
-    { tokens: "max_completion_tokens", json: !!o.json },
-    { tokens: "max_tokens", json: false },
+    { tokens: "max_completion_tokens", json: !!o.json, effort: true },
+    { tokens: "max_tokens", json: false, effort: false },
   ];
   let last: AiError | null = null;
   for (let v = 0; v < variants.length; v++) {
@@ -79,6 +79,8 @@ export async function generateXai(o: GenOpts): Promise<GenResult> {
             ],
             [variants[v].tokens]: o.maxOutputTokens,
             ...(variants[v].json ? { response_format: { type: "json_object" } } : {}),
+            // xAI thinks at "high" by default, which is slow and costly. "medium" is plenty for writing angles.
+            ...(variants[v].effort ? { reasoning_effort: "medium" } : {}),
           }),
         })) as {
           choices?: { message?: { content?: string | null } }[];
