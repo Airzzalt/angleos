@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
+import { setCollectionMentorAction } from "./actions";
 import { FileImporter } from "@/components/file-importer";
 import { Snippet } from "@/components/snippet";
 
@@ -25,8 +26,8 @@ export default async function KnowledgeBasePage({ searchParams }: { searchParams
               (select count(*) from playbook_rules r where r.module_id = m.id and r.status = 'off') as off
          from playbook_modules m order by m.code`,
     ),
-    query<{ name: string; authority_tier: number; docs: string }>(
-      `select c.name, c.authority_tier, (select count(*) from kb_documents d where d.collection_id = c.id) as docs
+    query<{ name: string; authority_tier: number; mentor: string; docs: string }>(
+      `select c.name, c.authority_tier, c.mentor, (select count(*) from kb_documents d where d.collection_id = c.id) as docs
          from kb_collections c order by c.authority_tier, c.name`,
     ),
     q.trim() ? searchBrain(q) : null,
@@ -136,12 +137,31 @@ export default async function KnowledgeBasePage({ searchParams }: { searchParams
           <FileImporter
             kind="lessons"
             accept=".txt,.vtt,.srt,.md"
-            collections={colls.rows.map((c) => ({ name: c.name, tier: c.authority_tier }))}
+            collections={colls.rows.map((c) => ({ name: c.name, tier: c.authority_tier, mentor: c.mentor }))}
             label="Choose lesson files"
             hint="Pick the course name first. Lessons with garbled audio get a warning you can review."
           />
         </Card>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader title="Collections" description="Each collection feeds one mentor. Kalorip answers use the Kalorip collections first and fall back to the Brand material when Kalorip has nothing on the question. Brand answers use the Brand collections and the playbook." />
+        <ul className="divide-y divide-border p-3 sm:p-4">
+          {colls.rows.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted">No collections yet. Add lessons above.</li>}
+          {colls.rows.map((c) => (
+            <li key={c.name} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+              <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+              <span className="text-xs text-muted">{c.docs} lessons</span>
+              <Badge tone={c.mentor === "kalorip" ? "accent" : "neutral"}>{c.mentor === "kalorip" ? "Kalorip mentor" : "Brand mentor"}</Badge>
+              <form action={setCollectionMentorAction}>
+                <input type="hidden" name="name" value={c.name} />
+                <input type="hidden" name="mentor" value={c.mentor === "kalorip" ? "brand" : "kalorip"} />
+                <Button type="submit" variant="ghost" size="sm">Switch to {c.mentor === "kalorip" ? "Brand" : "Kalorip"}</Button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
       <Card className="mb-6">
         <CardHeader title="Playbook modules" description="Open a module to read, switch off or edit its rules. A switched-off rule is never used." />

@@ -4,40 +4,47 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { FeedbackButtons } from "@/components/feedback-buttons";
+import { sendMentorAction } from "@/app/(app)/mentor/actions";
 
-type Msg = { role: "user" | "assistant"; text: string };
+type Msg = { id?: string; role: "user" | "assistant"; text: string; basis?: "kb" | "general"; error?: boolean };
 
 const suggestions = ["What should I do first on this screen?", "Explain this like I'm new", "Summarise this project"];
 
-// Placeholder chat: the real AI is connected in a later phase. The layout and behaviour are final.
-export function ChatPanel({ open, onClose, screen }: { open: boolean; onClose: () => void; screen: string }) {
+// Ask AI: the same engine as the Mentor page, with the screen (and project, if you are in one) as context.
+export function ChatPanel({ open, onClose, screen, projectId = null }: { open: boolean; onClose: () => void; screen: string; projectId?: string | null }) {
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (messages.length || typing) endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, typing]);
-  useEffect(() => () => clearTimeout(timer.current), []);
 
-  function send(text: string) {
+  async function send(text: string) {
     const t = text.trim();
     if (!t || typing) return;
     setMessages((m) => [...m, { role: "user", text: t }]);
     setDraft("");
     setTyping(true);
-    timer.current = setTimeout(() => {
-      setTyping(false);
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          text: "This is a preview of the chat. In a later phase I'll answer here using this screen, your project's context and your course playbook, and show which rules I used.",
-        },
-      ]);
-    }, 1100);
+    const fd = new FormData();
+    fd.set("text", t);
+    fd.set("source", "ask");
+    fd.set("screen", screen);
+    if (projectId) fd.set("projectId", projectId);
+    if (threadId) fd.set("threadId", threadId);
+    try {
+      const r = await sendMentorAction(fd);
+      if (r.ok) {
+        setThreadId(r.threadId);
+        setMessages((m) => [...m, { id: r.assistant.id, role: "assistant", text: r.assistant.text, basis: r.assistant.basis }]);
+      } else setMessages((m) => [...m, { role: "assistant", text: r.error, error: true }]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", text: "Something went wrong. Please try again.", error: true }]);
+    }
+    setTyping(false);
   }
 
   return (
@@ -81,7 +88,7 @@ export function ChatPanel({ open, onClose, screen }: { open: boolean; onClose: (
               </span>
               <p className="text-[15px] font-medium">Ask anything about this screen</p>
               <p className="mx-auto mt-1 max-w-[280px] text-sm text-muted">
-                The chat will know your project, your context and the playbook rules.
+                It knows which screen you are on and your project, and answers from our built-in knowledge base.
               </p>
               <div className="mt-5 flex flex-col gap-2">
                 {suggestions.map((s, i) => (
@@ -107,7 +114,13 @@ export function ChatPanel({ open, onClose, screen }: { open: boolean; onClose: (
                     : "origin-bottom-left bg-surface-2",
                 )}
               >
-                {m.text}
+                <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                {m.role === "assistant" && m.id && (
+                  <div className="mt-2 space-y-1.5 border-t border-border pt-2">
+                    {m.basis && <p className="text-xs text-muted">{m.basis === "kb" ? "From our knowledge base" : "General AI knowledge"}</p>}
+                    <FeedbackButtons kind="chat" targetId={m.id} />
+                  </div>
+                )}
               </div>
             ))
           )}

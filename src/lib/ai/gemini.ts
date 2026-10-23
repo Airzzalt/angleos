@@ -60,7 +60,8 @@ export async function listModels(): Promise<string[]> {
   return out.sort();
 }
 
-export type GenOpts = { model: string; system: string; prompt: string; maxOutputTokens: number; json?: boolean };
+export type GenImage = { mime: string; data: string }; // data is base64
+export type GenOpts = { model: string; system: string; prompt: string; maxOutputTokens: number; json?: boolean; images?: GenImage[] };
 
 export async function generate(o: GenOpts): Promise<GenResult> {
   if (!MODEL_ID.test(o.model)) throw new AiError("That model name is not valid.");
@@ -72,7 +73,7 @@ export async function generate(o: GenOpts): Promise<GenResult> {
         method: "POST",
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: o.system }] },
-          contents: [{ role: "user", parts: [{ text: o.prompt }] }],
+          contents: [{ role: "user", parts: [{ text: o.prompt }, ...(o.images ?? []).map((im) => ({ inlineData: { mimeType: im.mime, data: im.data } }))] }],
           generationConfig: { temperature: 0.2, maxOutputTokens: o.maxOutputTokens, ...(o.json ? { responseMimeType: "application/json" } : {}) },
         }),
       })) as {
@@ -102,6 +103,9 @@ function fakeGenerate(o: GenOpts): GenResult {
   let text: string;
   if (o.system.includes("ANGLE EDITOR")) {
     text = o.prompt;
+  } else if (o.system.includes("MENTOR")) {
+    const kb = o.prompt.includes("KNOWLEDGE BASE EXTRACTS:") && !o.prompt.includes("KNOWLEDGE BASE EXTRACTS:\n(none found)");
+    text = `BASIS: ${kb ? "KB" : "GENERAL"}\n\nFake mentor answer${kb ? " from the knowledge base (CORE-04)" : " from general knowledge"}.${o.prompt.includes("IMAGE ATTACHED") ? " I read your screenshot." : ""}${o.prompt.includes("SOURCE: kalorip") ? " Kalorip mode." : ""}`;
   } else if (o.system.includes("PRODUCT LINE WRITER")) {
     text = "A ceramic mug for coffee lovers, bought by people who want their drink to stay warm.";
   } else if (o.system.includes("READER")) {

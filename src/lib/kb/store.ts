@@ -63,11 +63,11 @@ export async function importPlaybookFile(ownerId: string, fileName: string, text
   };
 }
 
-export async function ensureCollection(ownerId: string, name: string, tier: number): Promise<string> {
+export async function ensureCollection(ownerId: string, name: string, tier: number, mentor: "brand" | "kalorip" = "brand"): Promise<string> {
   const { rows } = await query<{ id: string }>(
-    `insert into kb_collections (owner_id, name, authority_tier) values ($1,$2,$3)
-     on conflict (name) do update set authority_tier = excluded.authority_tier returning id`,
-    [ownerId, name.trim(), tier],
+    `insert into kb_collections (owner_id, name, authority_tier, mentor) values ($1,$2,$3,$4)
+     on conflict (name) do update set authority_tier = excluded.authority_tier, mentor = excluded.mentor returning id`,
+    [ownerId, name.trim(), tier, mentor],
   );
   return rows[0].id;
 }

@@ -31,7 +31,7 @@ export async function importFileAction(formData: FormData): Promise<ImportResult
       const name = String(formData.get("collection") ?? "").trim().slice(0, 80);
       const tier = Math.min(3, Math.max(1, Number(formData.get("tier")) || 2));
       if (!name) return { ok: false, message: "Type a collection name first (for example the course name)." };
-      res = await importLessonFile(me.id, await ensureCollection(me.id, name, tier), file.name, text);
+      res = await importLessonFile(me.id, await ensureCollection(me.id, name, tier, String(formData.get("mentor") ?? "") === "kalorip" ? "kalorip" : "brand"), file.name, text);
     } else return { ok: false, message: "Unknown import type." };
     revalidatePath("/admin/knowledge-base", "layout");
     revalidatePath("/admin/prompts", "layout");
@@ -40,6 +40,15 @@ export async function importFileAction(formData: FormData): Promise<ImportResult
     console.error("import failed", e);
     return { ok: false, message: `${file.name}: something went wrong while saving it` };
   }
+}
+
+/** Which mentor a whole collection feeds: Brand or Kalorip. */
+export async function setCollectionMentorAction(formData: FormData) {
+  await requireAdmin();
+  const name = String(formData.get("name") ?? "").slice(0, 80);
+  const mentor = String(formData.get("mentor") ?? "") === "kalorip" ? "kalorip" : "brand";
+  await query("update kb_collections set mentor = $2 where name = $1", [name, mentor]);
+  revalidatePath("/admin/knowledge-base");
 }
 
 export async function setRuleStatusAction(formData: FormData) {

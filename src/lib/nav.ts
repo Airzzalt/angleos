@@ -2,6 +2,7 @@ import {
   Bookmark,
   Clapperboard,
   Compass,
+  GraduationCap,
   Crosshair,
   FolderOpen,
   ImageIcon,
@@ -12,6 +13,7 @@ import {
   ScanSearch,
   ScrollText,
   Settings,
+  ThumbsDown,
   Ticket,
   Users,
   UsersRound,
@@ -30,6 +32,7 @@ export const mainNav: NavItem[] = [
   { href: "/analyze", label: "Analyze Ad", icon: ScanSearch },
   { href: "/swipe", label: "Swipe File", icon: Bookmark },
   { href: "/gethooked", label: "Get Hooked Search", icon: Crosshair },
+  { href: "/mentor", label: "Mentor", icon: GraduationCap },
   { href: "/team", label: "Team", icon: UsersRound },
 ];
 
@@ -38,6 +41,7 @@ export const bottomNav: NavItem[] = [{ href: "/settings", label: "Settings", ico
 export const adminNav: NavItem[] = [
   { href: "/admin/knowledge-base", label: "Knowledge Base", icon: Library },
   { href: "/admin/prompts", label: "Prompts", icon: ScrollText },
+  { href: "/admin/feedback", label: "Feedback", icon: ThumbsDown },
   { href: "/admin/ai", label: "AI connection", icon: Cpu },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/invites", label: "Invites", icon: Ticket },

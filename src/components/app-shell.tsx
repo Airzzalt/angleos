@@ -242,7 +242,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
       </div>
 
       <Heartbeat />
-      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} screen={screenName(pathname)} />
+      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} screen={screenName(pathname)} projectId={/^\/projects\/([0-9a-f-]{36})/i.exec(pathname)?.[1] ?? null} />
     </div>
   );
 }

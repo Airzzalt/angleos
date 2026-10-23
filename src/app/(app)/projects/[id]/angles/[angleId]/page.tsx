@@ -8,6 +8,7 @@ import { query } from "@/lib/db";
 import { Badge, Card } from "@/components/ui/card";
 import { Collapse } from "@/components/collapse";
 import { AngleActionsBar } from "@/components/angle-actions-bar";
+import { FeedbackButtons } from "@/components/feedback-buttons";
 
 export const metadata = { title: "Angle" };
 
@@ -83,6 +84,10 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
 
           <div className="mt-5 border-t border-border pt-4">
             <AngleActionsBar projectId={project.id} id={row.id} favourite={row.favourite} angle={d.angle} hooks={d.hooks} hasDeep={!!d.deep} copyText={copyText} />
+          </div>
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="mb-1 text-xs text-muted">Is this a good angle?</p>
+            <FeedbackButtons kind="angle" targetId={row.id} initial={(await query<{ rating: number }>("select rating from feedback where kind = 'angle' and target_id = $1 and owner_id = $2", [row.id, me.id])).rows[0]?.rating ?? 0} />
           </div>
         </Card>
 

@@ -19,7 +19,7 @@ export function FileImporter({
 }: {
   kind: "playbook" | "lessons" | "prompts";
   accept: string;
-  collections?: { name: string; tier: number }[];
+  collections?: { name: string; tier: number; mentor?: string }[];
   label: string;
   hint: string;
 }) {
@@ -28,6 +28,7 @@ export function FileImporter({
   const [drag, setDrag] = useState(false);
   const [collection, setCollection] = useState("");
   const [tier, setTier] = useState("2");
+  const [mentor, setMentor] = useState("brand");
   const input = useRef<HTMLInputElement>(null);
 
   async function run(files: File[]) {
@@ -41,6 +42,7 @@ export function FileImporter({
       fd.set("file", files[i]);
       fd.set("collection", collection);
       fd.set("tier", tier);
+      fd.set("mentor", mentor);
       let res: { ok: boolean; message: string };
       try {
         res = await importFileAction(fd);
@@ -59,7 +61,7 @@ export function FileImporter({
   return (
     <div className="space-y-4 p-5">
       {needsCollection && (
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <div>
             <label htmlFor="coll" className="mb-1.5 block text-[13px] font-medium text-muted">
               Collection (the course these lessons belong to)
@@ -68,7 +70,7 @@ export function FileImporter({
               id="coll"
               list="collections"
               value={collection}
-              onChange={(e) => setCollection(e.target.value)}
+              onChange={(e) => { setCollection(e.target.value); const known = collections.find((c) => c.name === e.target.value); if (known?.mentor) setMentor(known.mentor); }}
               placeholder="e.g. Ad Creative Program"
               className={cn(inputClass, "h-11")}
               maxLength={80}
@@ -87,6 +89,15 @@ export function FileImporter({
               <option value="1">Tier 1 (main instructor)</option>
               <option value="2">Tier 2 (course lessons)</option>
               <option value="3">Tier 3 (Q&A calls)</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="mentor" className="mb-1.5 block text-[13px] font-medium text-muted">
+              Used by
+            </label>
+            <select id="mentor" value={mentor} onChange={(e) => setMentor(e.target.value)} className={cn(inputClass, "h-11 pr-8")}>
+              <option value="brand">Brand mentor</option>
+              <option value="kalorip">Kalorip mentor</option>
             </select>
           </div>
         </div>
