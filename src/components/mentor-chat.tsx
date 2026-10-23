@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowUp, BookOpen, Loader2, Paperclip, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/markdown";
 import { FeedbackButtons } from "@/components/feedback-buttons";
 import { deleteThreadAction, sendMentorAction } from "@/app/(app)/mentor/actions";
 
@@ -110,7 +111,7 @@ export function MentorChat({
               <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${m.role === "user" ? "bg-accent text-white" : "bg-surface-2"}`}>
                   {m.hasImage && <p className="mb-1 flex items-center gap-1.5 text-xs opacity-80"><Paperclip className="h-3 w-3" aria-hidden="true" /> Screenshot attached</p>}
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                  {m.role === "assistant" ? <Markdown text={m.text} /> : <p className="whitespace-pre-wrap break-words">{m.text}</p>}
                   {m.role === "assistant" && (
                     <div className="mt-2 space-y-2 border-t border-border pt-2">
                       {m.basis && <p className="flex items-center gap-1.5 text-xs text-muted"><BookOpen className="h-3 w-3" aria-hidden="true" /> {BASIS_LABEL[m.basis]}</p>}

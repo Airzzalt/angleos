@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scrubRuleRefs } from "../src/lib/ai/angles-shape.ts";
+import { scrubRuleRefs, scrubRuleRefsKeepLines } from "../src/lib/ai/angles-shape.ts";
 import { splitBasis, checkImage, orQuery } from "../src/lib/ai/chat-shape.ts";
 
 test("the BASIS line is taken off the answer and decides the label", () => {
@@ -33,4 +33,10 @@ test("only real PNG, JPG and WebP pictures are accepted", () => {
 
 test("a question becomes an OR search without short words", () => {
   assert.equal(orQuery("Should I scale my ads now?"), "should | scale | ads | now");
+});
+
+test("chat cleanup removes rule codes but keeps paragraphs and lists", () => {
+  const out = scrubRuleRefsKeepLines("First part (CORE-04).\n\n### Next\n\n* **A:** one\n* B two  OFFER-34");
+  assert.ok(!out.includes("CORE-04") && !out.includes("OFFER-34"));
+  assert.ok(out.includes("\n\n### Next\n\n* **A:** one\n* B two"));
 });

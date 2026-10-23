@@ -51,6 +51,15 @@ const clean = (s: unknown, max: number) => String(s ?? "").replace(/[\u0000-\u00
 
 /** People must never see rule codes from the knowledge base, so any code that slips into a text is removed. */
 const RULE_REF = /\s*[\[(]?\b(?:CORE|RES|ANGLE|MECH|AWARE|BELIEF|HOOK|FORMAT|SCRIPT|EMO|VISUAL|STATIC|OFFER|TEST|BRIEF|ETHICS|ANALYZE|BREAKDOWNS|AIWORK|RMBC|MISC|BA)-\d{1,3}\b[\])]?/g;
+/** Same as scrubRuleRefs but keeps line breaks, for chat answers that use paragraphs, headings and lists. */
+export function scrubRuleRefsKeepLines(s: string): string {
+  return s
+    .replace(new RegExp(RULE_REF.source.replace(/^\\s\*/, "[ \\t]*"), "g"), "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([.,;:!?])/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 export function scrubRuleRefs(s: string): string {
   return s.replace(RULE_REF, "").replace(/\s{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
 }

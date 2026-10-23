@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/markdown";
 import { FeedbackButtons } from "@/components/feedback-buttons";
 import { sendMentorAction } from "@/app/(app)/mentor/actions";
 
@@ -114,7 +115,7 @@ export function ChatPanel({ open, onClose, screen, projectId = null }: { open: b
                     : "origin-bottom-left bg-surface-2",
                 )}
               >
-                <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                {m.role === "assistant" ? <Markdown text={m.text} /> : <p className="whitespace-pre-wrap break-words">{m.text}</p>}
                 {m.role === "assistant" && m.id && (
                   <div className="mt-2 space-y-1.5 border-t border-border pt-2">
                     {m.basis && <p className="text-xs text-muted">{m.basis === "kb" ? "From our knowledge base" : "General AI knowledge"}</p>}

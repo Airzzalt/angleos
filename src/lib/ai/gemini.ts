@@ -105,7 +105,7 @@ function fakeGenerate(o: GenOpts): GenResult {
     text = o.prompt;
   } else if (o.system.includes("MENTOR")) {
     const kb = o.prompt.includes("KNOWLEDGE BASE EXTRACTS:") && !o.prompt.includes("KNOWLEDGE BASE EXTRACTS:\n(none found)");
-    text = `BASIS: ${kb ? "KB" : "GENERAL"}\n\nFake mentor answer${kb ? " from the knowledge base (CORE-04)" : " from general knowledge"}.${o.prompt.includes("IMAGE ATTACHED") ? " I read your screenshot." : ""}${o.prompt.includes("SOURCE: kalorip") ? " Kalorip mode." : ""}`;
+    text = `BASIS: ${kb ? "KB" : "GENERAL"}\n\n### Fake next steps\n\n* **First:** fake step one\n* **Second:** fake step two\n\nFake mentor answer${kb ? " from the knowledge base (CORE-04)" : " from general knowledge"}.${o.prompt.includes("IMAGE ATTACHED") ? " I read your screenshot." : ""}${o.prompt.includes("SOURCE: kalorip") ? " Kalorip mode." : ""}`;
   } else if (o.system.includes("PRODUCT LINE WRITER")) {
     text = "A ceramic mug for coffee lovers, bought by people who want their drink to stay warm.";
   } else if (o.system.includes("READER")) {
