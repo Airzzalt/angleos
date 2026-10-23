@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { EmptyState, PageHeader } from "@/components/page";
 import { Badge, Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DeleteProjectButton } from "@/components/delete-project-button";
 
 export const metadata = { title: "Projects" };
 
@@ -16,12 +17,12 @@ const newButton = (
   </Link>
 );
 
-type Row = { id: string; name: string; kind: string; niche: string; market: string; updated_at: string; files: string; words: string };
+type Row = { id: string; owner_id: string; name: string; kind: string; niche: string; market: string; updated_at: string; files: string; words: string };
 
 export default async function ProjectsPage() {
   const me = await requireUser();
   const { rows } = await query<Row>(
-    `select p.id, p.name, p.kind, p.niche, p.market, p.updated_at,
+    `select p.id, p.owner_id, p.name, p.kind, p.niche, p.market, p.updated_at,
             (select count(*) from project_files f where f.project_id = p.id) as files,
             (select coalesce(sum(word_count),0) from project_files f where f.project_id = p.id) as words
        from projects p
@@ -42,7 +43,8 @@ export default async function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((p, i) => (
-            <Link key={p.id} href={`/projects/${p.id}`} className="reveal" style={{ "--i": i } as React.CSSProperties}>
+            <div key={p.id} className="reveal relative" style={{ "--i": i } as React.CSSProperties}>
+            <Link href={`/projects/${p.id}`} className="block h-full">
               <Card interactive className="h-full p-5">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-[17px] font-semibold leading-snug tracking-tight">{p.name}</h2>
@@ -59,12 +61,14 @@ export default async function ProjectsPage() {
                   <span>
                     <b className="font-semibold text-fg">{Number(p.words).toLocaleString()}</b> words
                   </span>
-                  <span className="ml-auto text-xs">
+                  <span className={`ml-auto text-xs ${p.owner_id === me.id || me.role === "admin" ? "pr-9" : ""}`}>
                     {new Date(p.updated_at).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
                   </span>
                 </div>
               </Card>
             </Link>
+            {(p.owner_id === me.id || me.role === "admin") && <DeleteProjectButton projectId={p.id} name={p.name} className="absolute bottom-2 right-2" />}
+            </div>
           ))}
         </div>
       )}

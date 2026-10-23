@@ -4,18 +4,19 @@ import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { EmptyState, PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
+import { DeleteProjectButton } from "@/components/delete-project-button";
 import { QuickStartForm } from "@/components/project-forms";
 
 export const metadata = { title: "Angle Generator" };
 
-type ProjectRow = { id: string; name: string; kind: string; files: string; angles: string };
+type ProjectRow = { id: string; owner_id: string; name: string; kind: string; files: string; angles: string };
 type AngleRow = { id: string; project_id: string; project_name: string; kind: string; favourite: boolean; data: { angle: string; sub_avatar: string; awareness: string } };
 
 export default async function AnglesPage() {
   const me = await requireUser();
   const projects = (
     await query<ProjectRow>(
-      `select p.id, p.name, p.kind,
+      `select p.id, p.owner_id, p.name, p.kind,
               (select count(*) from project_files f where f.project_id = p.id) as files,
               (select count(*) from project_angles a where a.project_id = p.id) as angles
          from projects p
@@ -51,13 +52,14 @@ export default async function AnglesPage() {
                 ) : (
                   <ul className="divide-y divide-border p-2">
                     {list.map((p) => (
-                      <li key={p.id}>
-                        <Link href={`/projects/${p.id}?tab=angles`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-4 py-3 transition hover:bg-surface-2">
+                      <li key={p.id} className="flex items-center gap-1">
+                        <Link href={`/projects/${p.id}?tab=angles`} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-4 py-3 transition hover:bg-surface-2">
                           <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
                           <Badge tone={kind === "quick" ? "accent" : "neutral"}>{kind === "quick" ? "Quick start" : "Brand"}</Badge>
                           <span className="text-xs text-muted">{p.files} files</span>
                           <span className="text-xs text-muted">{p.angles} angles</span>
                         </Link>
+                        {(p.owner_id === me.id || me.role === "admin") && <DeleteProjectButton projectId={p.id} name={p.name} next="/angles" className="shrink-0" />}
                       </li>
                     ))}
                   </ul>

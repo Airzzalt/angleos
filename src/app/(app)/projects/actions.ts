@@ -143,5 +143,6 @@ export async function deleteProjectAction(formData: FormData) {
   if (!project || (project.owner_id !== me.id && me.role !== "admin")) return;
   await query("delete from projects where id = $1", [project.id]);
   revalidatePath("/projects");
-  redirect("/projects");
+  revalidatePath("/angles");
+  redirect(String(formData.get("next") ?? "") === "/angles" ? "/angles" : "/projects");
 }
