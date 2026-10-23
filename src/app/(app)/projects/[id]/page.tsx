@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 import { EmptyState, PageHeader } from "@/components/page";
 import { Badge, Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ContextForm, FileUploader } from "@/components/project-forms";
+import { ContextForm, FileUploader, RenameProject } from "@/components/project-forms";
 import { BriefSections, BuildPanel, type PlanView } from "@/components/brief-panel";
 import { AnglesWorkspace, type AngleView } from "@/components/angles-panel";
 import { getAngles, latestAngleJob } from "@/lib/ai/angles";
@@ -110,7 +110,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       <Link href="/projects" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition hover:text-fg">
         <ArrowLeft className="h-4 w-4" /> All projects
       </Link>
-      <PageHeader preview={false} title={project.name} description={[project.niche, project.market].filter(Boolean).join(" · ") || undefined} />
+      <PageHeader preview={false} title={project.name} description={[project.niche, project.market].filter(Boolean).join(" · ") || undefined} actions={<RenameProject projectId={project.id} name={project.name} />} />
       {project.kind === "quick" && (
         <div className="-mt-3 mb-5 flex flex-wrap items-center gap-3 text-sm">
           <Badge tone="accent">Quick project</Badge>

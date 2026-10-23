@@ -136,6 +136,19 @@ export async function saveContextAction(_p: FormState, formData: FormData): Prom
   return { ok: true };
 }
 
+export async function renameProjectAction(projectId: string, name: string): Promise<{ ok?: boolean; error?: string }> {
+  const me = await requireUser();
+  const project = await getProject(me, projectId);
+  if (!project) return { error: "That project wasn't found." };
+  const n = name.replace(/\s+/g, " ").trim().slice(0, 120);
+  if (n.length < 2) return { error: "Give it a name (at least 2 characters)." };
+  await query("update projects set name = $2, updated_at = now() where id = $1", [project.id, n]);
+  revalidatePath("/projects");
+  revalidatePath("/angles");
+  revalidatePath(`/projects/${project.id}`);
+  return { ok: true };
+}
+
 export async function deleteProjectAction(formData: FormData) {
   const me = await requireUser();
   const project = await getProject(me, String(formData.get("projectId") ?? ""));

@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Check, CheckCircle2, FileArchive, Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
-import { createProjectAction, saveContextAction, uploadBatchAction, type FormState } from "@/app/(app)/projects/actions";
+import { createProjectAction, renameProjectAction, saveContextAction, uploadBatchAction, type FormState } from "@/app/(app)/projects/actions";
 import { createQuickProjectAction, type AngleState } from "@/app/(app)/projects/angle-actions";
 import { MARKETS } from "@/lib/markets";
 import { LIMITS } from "@/lib/uploads/limits";
@@ -278,7 +279,7 @@ export function QuickStartForm() {
     <form action={action} className="space-y-4">
       <div>
         <Label htmlFor="quick-name">Product name</Label>
-        <Input id="quick-name" name="name" required minLength={2} maxLength={120} placeholder="e.g. Aurora Sleep Mask" />
+        <Input id="quick-name" name="name" required minLength={2} maxLength={80} autoComplete="off" placeholder="e.g. Aurora Sleep Mask" />
       </div>
       <div>
         <Label htmlFor="quick-about">What are you selling, and who is it for?</Label>
@@ -286,6 +287,34 @@ export function QuickStartForm() {
       </div>
       {state?.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
       <Button type="submit" disabled={pending}>{pending ? "Starting…" : "Start quick angles"}</Button>
+    </form>
+  );
+}
+
+/** Change a project's name. Works on quick starts and full projects. */
+export function RenameProject({ projectId, name }: { projectId: string; name: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(name);
+  const [error, setError] = useState("");
+  const [pending, start] = useTransition();
+  if (!open) return <Button variant="secondary" size="sm" onClick={() => { setValue(name); setError(""); setOpen(true); }}>Rename</Button>;
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await renameProjectAction(projectId, value);
+          if (r.ok) { setOpen(false); router.refresh(); } else setError(r.error ?? "Could not rename.");
+        });
+      }}
+    >
+      <label htmlFor="rename-project" className="sr-only">Project name</label>
+      <Input id="rename-project" value={value} onChange={(e) => setValue(e.target.value)} maxLength={120} autoComplete="off" className="h-10 w-56" />
+      <Button type="submit" size="sm" disabled={pending}>{pending ? "Saving…" : "Save name"}</Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+      {error && <span role="alert" className="text-xs text-danger">{error}</span>}
     </form>
   );
 }

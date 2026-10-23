@@ -191,6 +191,7 @@ export async function createQuickProjectAction(_p: AngleState, formData: FormDat
   const name = clean(formData.get("name"), 120);
   const about = clean(formData.get("about"), 2000);
   if (name.length < 2) return { error: "Give the product a name (at least 2 characters)." };
+  if (/^what are you selling/i.test(name) || name.length > 80) return { error: "The product name should be short, like \"Aurora Sleep Mask\". Put the longer description in the box below it." };
   if (about.length < 15) return { error: "Say what you are selling and who it is for (one line is enough). The angles are built around it." };
   if (me.role !== "admin") {
     const n = await query<{ n: number }>("select count(*)::int as n from projects where owner_id = $1", [me.id]);
