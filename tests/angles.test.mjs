@@ -73,7 +73,7 @@ test("desire ladder, cost of inaction and a sniper brief are kept and cleaned", 
     inaction: "Another night of waking up", hooks: Array.from({ length: 12 }, (_, i) => `hook ${i}`),
     deep: { story: "A mum at 2am", belief_now: "x", belief_needed: "y", belief_steps: ["a", "b"], objections: [{ objection: "price", answer: "worth it" }, { objection: "", answer: "z" }], proof_needed: ["p"], outline: { hook: "h", problem: "p", why: "w", product: "pr", result: "r", offer: "o" } },
   }] };
-  const a = normaliseAngles(raw, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  const a = normaliseAngles(raw, { files: new Set(), rules: new Set(), max: 3, offer: "x" }).angles[0];
   assert.equal(a.ladder.emotional, "stop checking at 2am");
   assert.equal(a.inaction, "Another night of waking up");
   assert.equal(a.hooks.length, 10);
@@ -106,7 +106,7 @@ test("rule codes never reach the text people read", () => {
 });
 
 test("the 3-2-2 test plan is kept to 3 creatives, 2 primary texts and 2 headlines", () => {
-  const a = normaliseAngles({ angles: [{ angle: "x", test_plan: { creatives: ["a", "b", "c", "d"], primary_texts: ["p1", "p2", "p3"], headlines: ["h1", "h2", "h3"], note: "run it" } }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  const a = normaliseAngles({ angles: [{ angle: "x", test_plan: { creatives: [{ format: "Moment photo", visual: "v", hook: "a" }, "b", { format: "Comparison", hook: "c" }, "d"], primary_texts: ["p1", "p2", "p3"], headlines: ["h1", "h2", "h3"], note: "run it" } }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
   assert.equal(a.test_plan.creatives.length, 3);
   assert.equal(a.test_plan.primary_texts.length, 2);
   assert.equal(a.test_plan.headlines.length, 2);
@@ -124,4 +124,18 @@ test("the final read-through only changes wording and only where the structure m
   assert.equal(bad.angle, "Sell it fast");
   assert.deepEqual(bad.hooks, ["one", "two"]);
   assert.equal(bad.ladder.surface, "s");
+});
+
+test("test plan creatives keep format, visual and hook, and older plain strings still work", () => {
+  const a = normaliseAngles({ angles: [{ angle: "x", test_plan: { creatives: [{ format: "Moment photo", visual: "A settled sleeper", hook: "h1" }, "plain hook"], primary_texts: [], headlines: [], note: "" } }] }, { files: new Set(), rules: new Set(), max: 3 }).angles[0];
+  assert.deepEqual(a.test_plan.creatives[0], { format: "Moment photo", visual: "A settled sleeper", hook: "h1" });
+  assert.deepEqual(a.test_plan.creatives[1], { format: "", visual: "", hook: "plain hook" });
+});
+
+test("with no offer given, an invented offer in the ad outline is replaced", () => {
+  const raw = { angles: [{ angle: "x", deep: { story: "s", outline: { hook: "h", offer: "50% off today" } } }] };
+  const none = normaliseAngles(raw, { files: new Set(), rules: new Set(), max: 3, offer: "" }).angles[0];
+  assert.equal(none.deep.outline.offer, "No offer given.");
+  const given = normaliseAngles(raw, { files: new Set(), rules: new Set(), max: 3, offer: "2 for $39" }).angles[0];
+  assert.equal(given.deep.outline.offer, "50% off today");
 });

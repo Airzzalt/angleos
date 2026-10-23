@@ -6,6 +6,7 @@ import { getProject } from "@/lib/projects";
 import { getAngle } from "@/lib/ai/angles";
 import { query } from "@/lib/db";
 import { Badge, Card } from "@/components/ui/card";
+import { Collapse } from "@/components/collapse";
 import { AngleActionsBar } from "@/components/angle-actions-bar";
 
 export const metadata = { title: "Angle" };
@@ -45,7 +46,7 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
     d.inaction && `If they do nothing: ${d.inaction}`,
     d.result && `The result: ${d.result}`,
     d.mechanism && `Mechanism: ${d.mechanism}`,
-    tp && `Test plan (3-2-2):\nCreatives: ${tp.creatives.join(" | ")}\nPrimary texts: ${tp.primary_texts.join(" | ")}\nHeadlines: ${tp.headlines.join(" | ")}${tp.note ? `\n${tp.note}` : ""}`,
+    tp && `Test plan (3-2-2):\nCreatives: ${tp.creatives.map((c) => [c.format, c.visual, c.hook].filter(Boolean).join(" - ")).join(" | ")}\nPrimary texts: ${tp.primary_texts.join(" | ")}\nHeadlines: ${tp.headlines.join(" | ")}${tp.note ? `\n${tp.note}` : ""}`,
     d.hooks.length && `Hook bank:\n${d.hooks.map((h, i) => `${i + 1}. ${h}`).join("\n")}`,
     d.deep?.story && `The avatar:\n${d.deep.story}`,
     d.deep?.belief_steps.length && `Belief steps:\n${d.deep.belief_steps.map((x, i) => `${i + 1}. ${x}`).join("\n")}`,
@@ -110,8 +111,8 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
 
         {tp && (
           <Block title="Test plan (3-2-2)">
-            <p className="text-xs">Three creatives, two primary texts and two headlines. Everything else stays in the hook bank for later rounds.</p>
-            {tp.creatives.length > 0 && <div><p className="font-medium text-fg">3 creatives (the strongest hooks)</p><ol className="mt-1 list-decimal space-y-1 pl-5">{tp.creatives.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ol></div>}
+            <p className="text-xs">Three different creatives, two primary texts and two headlines. Everything else stays in the hook bank for later rounds.</p>
+            {tp.creatives.length > 0 && <div><p className="font-medium text-fg">3 different creatives</p><ol className="mt-1 space-y-2">{tp.creatives.map((c, i) => <li key={i} className="break-words rounded-xl bg-surface-2 px-3 py-2">{c.format && <p className="text-xs font-semibold uppercase tracking-wide text-accent">{c.format}</p>}{c.visual && <p className="mt-0.5">{c.visual}</p>}{c.hook && <p className="mt-1 text-fg">Hook: {c.hook}</p>}</li>)}</ol></div>}
             {tp.primary_texts.length > 0 && <div><p className="font-medium text-fg">2 primary texts</p><ul className="mt-1 space-y-2">{tp.primary_texts.map((x, i) => <li key={i} className="whitespace-pre-wrap break-words rounded-xl bg-surface-2 px-3 py-2">{x}</li>)}</ul></div>}
             {tp.headlines.length > 0 && <div><p className="font-medium text-fg">2 headlines</p><ul className="mt-1 list-disc space-y-1 pl-5">{tp.headlines.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ul></div>}
             {tp.note && <p className="break-words">{tp.note}</p>}
@@ -174,19 +175,17 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
 
         {avoid.length > 0 && (
           <Card className="p-5">
-            <details>
-              <summary className="cursor-pointer text-sm font-semibold">Claims to avoid ({avoid.length})</summary>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted">{avoid.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ul>
+            <Collapse title={`Claims to avoid (${avoid.length})`}>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted">{avoid.map((x, i) => <li key={i} className="break-words">{x}</li>)}</ul>
               <p className="mt-3 text-xs text-muted">Keep these out of ads and landing pages. They are kept apart on purpose so the selling parts stay positive.</p>
-            </details>
+            </Collapse>
           </Card>
         )}
         {d.market_note && (
           <Card className="p-5">
-            <details>
-              <summary className="cursor-pointer text-sm font-semibold">Market note</summary>
-              <p className="mt-3 break-words text-sm text-muted">{d.market_note}</p>
-            </details>
+            <Collapse title="Market note">
+              <p className="break-words text-sm text-muted">{d.market_note}</p>
+            </Collapse>
           </Card>
         )}
       </div>

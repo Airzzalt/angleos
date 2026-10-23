@@ -9,7 +9,7 @@ import { Badge, Card } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/field";
 import type { Angle } from "@/lib/ai/angles-shape";
 import { cancelJobAction } from "@/app/(app)/projects/brief-actions";
-import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, saveClaimLevelAction, suggestProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
+import { anglesJobStatusAction, deleteAngleAction, deleteRunAction, estimateAnglesAction, saveProductLineAction, saveOfferAction, saveClaimLevelAction, suggestProductLineAction, favouriteAngleAction, saveAngleAction, startAnglesAction, type AngleState, type PlanDto } from "@/app/(app)/projects/angle-actions";
 
 type Job = { id: string; status: string; done: number; total: number; message: string; error: string | null; spentCents: number; seconds?: number } | null;
 export type AngleView = {
@@ -67,7 +67,34 @@ function ProductLine({ projectId, initial, onSaved }: { projectId: string; initi
   );
 }
 
-export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false, claimLevel = "standard", initialLikeId = null, initialMode = "broad" }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean; claimLevel?: string; initialLikeId?: string | null; initialMode?: "broad" | "deep" }) {
+function OfferBox({ projectId, initial }: { projectId: string; initial: string }) {
+  const [text, setText] = useState(initial);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <div className="space-y-2">
+      <label htmlFor="offer" className="text-sm font-medium">Your offer <span className="font-normal text-muted">(optional)</span></label>
+      <textarea
+        id="offer"
+        value={text}
+        onChange={(e) => { setText(e.target.value); setMsg(null); }}
+        rows={2}
+        maxLength={600}
+        placeholder="Price, bundles, trial, shipping, free gift. For example: 2 for $39, free shipping, 30-day trial. Leave empty and the angles will say no offer was given."
+        className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button size="sm" variant="secondary" disabled={pending} onClick={() => start(async () => { const r = await saveOfferAction(projectId, text); setMsg(r.ok ? { ok: true, text: "Saved" } : { ok: false, text: r.error ?? "Could not save." }); })}>
+          {pending ? "Saving…" : "Save offer"}
+        </Button>
+        {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-success" : "text-danger"}`}>{msg.text}</span>}
+      </div>
+      <p className="text-xs text-muted">When filled in, the primary texts and the ad outline end on this exact offer. The AI never makes one up.</p>
+    </div>
+  );
+}
+
+export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, note, coverage = [], productLine = "", showProductLine = false, claimLevel = "standard", offer = "", initialLikeId = null, initialMode = "broad" }: { projectId: string; fileCount: number; angles: AngleView[]; job: Job; missing: string[]; note: string; coverage?: Coverage[]; productLine?: string; showProductLine?: boolean; claimLevel?: string; offer?: string; initialLikeId?: string | null; initialMode?: "broad" | "deep" }) {
   const router = useRouter();
   const [lineTick, setLineTick] = useState(0);
   const [live, setLive] = useState<Job>(job);
@@ -142,6 +169,7 @@ export function AnglesWorkspace({ projectId, fileCount, angles, job, missing, no
             <p className="mt-0.5 text-sm text-muted">Uses your research files and notes (a brief helps but is not needed) together with our built-in knowledge base.</p>
           </div>
           {showProductLine && <ProductLine projectId={projectId} initial={productLine} onSaved={() => { setLineTick((t) => t + 1); router.refresh(); }} />}
+          <OfferBox projectId={projectId} initial={offer} />
 
           {running && live ? (
             <div className="space-y-3" aria-live="polite">

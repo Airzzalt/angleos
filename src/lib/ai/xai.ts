@@ -125,7 +125,7 @@ function fakeXai(o: GenOpts): GenResult {
     inaction: "Fake cost of doing nothing",
     chain: { sign: "Fake sign", physical: "Fake physical effect", night: "Fake night effect", next_day: "Fake next day" },
     result: "Fake hopeful result",
-    test_plan: { creatives: [`Fake creative hook 1`, `Fake creative hook 2`, `Fake creative hook 3`], primary_texts: ["Fake primary text one", "Fake primary text two"], headlines: ["Fake headline one", "Fake headline two"], note: "Fake test note" },
+    test_plan: { creatives: [{ format: "Moment photo", visual: "Fake photo of a settled sleeper", hook: "Fake creative hook 1" }, { format: "Comparison", visual: "Fake side by side of two pillows", hook: "Fake creative hook 2" }, { format: "Notes-app screenshot", visual: "Fake notes screenshot", hook: "Fake creative hook 3" }], primary_texts: ["Fake primary text one", "Fake primary text two"], headlines: ["Fake headline one", "Fake headline two"], note: "Fake test note" },
     avoid: ["Fake do-not-claim note"],
     market_note: "Fake market note",
     hooks: deep ? Array.from({ length: 10 }, (_, k) => `Fake deep hook ${k + 1}`) : [`Fake hook A${i + 1}`, `Fake hook B${i + 1}`, `Fake hook C${i + 1}`],

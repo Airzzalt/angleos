@@ -29,10 +29,13 @@ export type Angle = {
   /** Competitor and market notes. Kept apart from the selling parts. */
   market_note?: string;
   /** The 3-2-2 test plan: the 3 strongest hooks as 3 creatives, 2 primary texts, 2 headlines. The full hook list stays as a hook bank. */
-  test_plan?: { creatives: string[]; primary_texts: string[]; headlines: string[]; note: string };
+  test_plan?: { creatives: Creative[]; primary_texts: string[]; headlines: string[]; note: string };
   /** Only on a Sniper (deep dive) angle: the full brief. */
   deep?: DeepBrief;
 };
+
+/** One creative in the test plan: a different execution (format and visual) with its own hook. */
+export type Creative = { format: string; visual: string; hook: string };
 
 export type DeepBrief = {
   story: string;
@@ -145,7 +148,23 @@ function list(v: unknown, max: number, len: number): string[] {
     .slice(0, max);
 }
 
-export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: Set<string>; max: number; totalFiles?: number }): { angles: Angle[]; missing: string[]; note: string; coverage: CoverageItem[] } {
+/** Creatives arrive as objects (format, visual, hook). Older saved angles stored plain hook strings, so those still work. */
+export function parseCreatives(v: unknown): Creative[] {
+  const arr = Array.isArray(v) ? v : [];
+  const out: Creative[] = [];
+  for (const x of arr) {
+    if (typeof x === "string") { const hook = clean(x, 300); if (hook) out.push({ format: "", visual: "", hook }); }
+    else if (x && typeof x === "object") {
+      const o = x as Record<string, unknown>;
+      const c = { format: clean(o.format, 80), visual: clean(o.visual, 400), hook: clean(o.hook ?? o.text, 300) };
+      if (c.hook || c.visual) out.push(c);
+    }
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: Set<string>; max: number; totalFiles?: number; offer?: string }): { angles: Angle[]; missing: string[]; note: string; coverage: CoverageItem[] } {
   const root = (raw && typeof raw === "object" ? raw : {}) as { angles?: unknown; missing?: unknown; note?: unknown; coverage?: unknown };
   const items = Array.isArray(root.angles) ? root.angles : Array.isArray(raw) ? (raw as unknown[]) : [];
   const seen = new Set<string>();
@@ -163,7 +182,7 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
     const chain = { sign: clean(ch.sign, 260), physical: clean(ch.physical, 260), night: clean(ch.night, 260), next_day: clean(ch.next_day, 260) };
     const avoid = list(it.avoid, 8, 260);
     const tp = (it.test_plan && typeof it.test_plan === "object" ? it.test_plan : {}) as Record<string, unknown>;
-    const test_plan = { creatives: list(tp.creatives, 3, 300), primary_texts: list(tp.primary_texts, 2, 700), headlines: list(tp.headlines, 2, 200), note: clean(tp.note, 400) };
+    const test_plan = { creatives: parseCreatives(tp.creatives), primary_texts: list(tp.primary_texts, 2, 700), headlines: list(tp.headlines, 2, 200), note: clean(tp.note, 400) };
     const ladder = { surface: clean(lad.surface, 300), emotional: clean(lad.emotional, 300), identity: clean(lad.identity, 300) };
     angles.push({
       sub_avatar: clean(it.sub_avatar, 160),
@@ -189,6 +208,8 @@ export function normaliseAngles(raw: unknown, ctx: { files: Set<string>; rules: 
     });
     if (angles.length >= ctx.max) break;
   }
+  // No offer given: never let an invented one through in the ad outline.
+  if (!(ctx.offer ?? "").trim()) for (const a of angles) if (a.deep) a.deep.outline.offer = "No offer given.";
   return { angles: scrubDeep(angles), missing: list(root.missing, 8, 200), note: clean(root.note, 400), coverage: normaliseCoverage(root.coverage, ctx.totalFiles ?? 0) };
 }
 

@@ -91,6 +91,15 @@ export async function saveProductLineAction(projectId: string, text: string): Pr
   return { ok: true };
 }
 
+export async function saveOfferAction(projectId: string, text: string): Promise<{ ok?: boolean; error?: string }> {
+  const me = await requireUser();
+  const project = await getProject(me, projectId);
+  if (!project) return { error: "That project wasn't found." };
+  await query("update projects set offer = $2, updated_at = now() where id = $1", [project.id, clean(text, 600)]);
+  revalidatePath(`/projects/${project.id}`);
+  return { ok: true };
+}
+
 const PRODUCT_LINE_SYSTEM = `You are the PRODUCT LINE WRITER. From the text you are given (research notes, customer threads, product pages), write ONE short line, at most 25 words, saying what the product is and who buys it, like: "Kids contour pillow, ages 2+, sized by age, bought by parents of kids who sleep badly". Use only what the text supports. Do not invent a product or a brand. If the text does not make clear what is being sold, reply exactly: UNCLEAR. Reply with the line only, no quotes, no extra words.`;
 
 /** Asks the cheap AI provider to read what is already in the project and suggest the one-line product description. */
