@@ -145,13 +145,19 @@ async function buildPrompt(project: { id: string; name: string }, angle: Angle, 
 // ---------- Starting ----------
 export type StartResult = { ok: true; jobId: string; run: () => Promise<void> } | { ok: false; message: string };
 
-export async function startScripts(me: SessionUser, project: { id: string; name: string }, angleId: string, req: ScriptRequest, cfg: AiConfig, ready: ReadyOk, confirmedCents: number): Promise<StartResult> {
+export async function estimateScripts(project: { id: string; name: string }, angleId: string, req: ScriptRequest, ready: ReadyOk): Promise<{ plan: ScriptPlan; req: ScriptRequest; angle: { id: string; data: Angle } } | { error: string }> {
   const row = (await query<{ id: string; data: Angle }>("select id, data from project_angles where id = $1 and project_id = $2", [angleId, project.id])).rows[0];
-  if (!row) return { ok: false, message: "Pick an angle first." };
+  if (!row) return { error: "Pick an angle first." };
   if (req.creativeIndex !== null && !row.data.test_plan?.creatives?.[req.creativeIndex]) req = { ...req, creativeIndex: null };
   const st = await loadStatic();
   const built = await buildPrompt(project, row.data, req, req.formats[0]);
-  const plan = planScripts(req, ready, { system: st.system.length, prompt: built.prompt.length });
+  return { plan: planScripts(req, ready, { system: st.system.length, prompt: built.prompt.length }), req, angle: row };
+}
+
+export async function startScripts(me: SessionUser, project: { id: string; name: string }, angleId: string, req0: ScriptRequest, cfg: AiConfig, ready: ReadyOk, confirmedCents: number): Promise<StartResult> {
+  const est = await estimateScripts(project, angleId, req0, ready);
+  if ("error" in est) return { ok: false, message: est.error };
+  const { plan, req, angle: row } = est;
   if (plan.estCents > confirmedCents + Math.max(5, Math.ceil(confirmedCents * 0.25))) {
     return { ok: false, message: "The estimate changed. Please look at the new cost and confirm again." };
   }
