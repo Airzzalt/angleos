@@ -33,3 +33,7 @@ create table script_versions (
   created_at timestamptz not null default now(),
   unique (script_id, version_no)
 );
+
+-- Thumbs on scripts too.
+alter table feedback drop constraint if exists feedback_kind_check;
+alter table feedback add constraint feedback_kind_check check (kind in ('chat', 'angle', 'script'));

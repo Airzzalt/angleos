@@ -42,20 +42,27 @@ export async function deleteThreadAction(formData: FormData) {
 }
 
 /** Thumbs up (1) or down (-1), with an optional note. Only on things the person can actually see. */
-export async function setFeedbackAction(kind: "chat" | "angle", targetId: string, rating: 1 | -1, note: string): Promise<{ ok: boolean; error?: string }> {
+export async function setFeedbackAction(kind: "chat" | "angle" | "script", targetId: string, rating: 1 | -1, note: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireUser();
   if (!/^[0-9a-f-]{36}$/i.test(targetId) || (rating !== 1 && rating !== -1)) return { ok: false, error: "Could not save that." };
   if (kind === "chat") {
     const m = await query("select 1 from chat_messages where id = $1 and owner_id = $2 and role = 'assistant'", [targetId, me.id]);
     if (!m.rows[0]) return { ok: false, error: "Could not save that." };
-  } else {
+  } else if (kind === "script") {
+    const a = await query(
+      `select 1 from scripts s join projects p on p.id = s.project_id
+        where s.id = $1 and (p.owner_id = $2 or ($3::uuid is not null and p.workspace_id = $3::uuid))`,
+      [targetId, me.id, me.workspaceId],
+    );
+    if (!a.rows[0]) return { ok: false, error: "Could not save that." };
+  } else if (kind === "angle") {
     const a = await query(
       `select 1 from project_angles a join projects p on p.id = a.project_id
         where a.id = $1 and (p.owner_id = $2 or ($3::uuid is not null and p.workspace_id = $3::uuid))`,
       [targetId, me.id, me.workspaceId],
     );
     if (!a.rows[0]) return { ok: false, error: "Could not save that." };
-  }
+  } else return { ok: false, error: "Could not save that." };
   await query(
     `insert into feedback (owner_id, kind, target_id, rating, note) values ($1,$2,$3,$4,$5)
      on conflict (owner_id, kind, target_id) do update set rating = excluded.rating, note = excluded.note, updated_at = now()`,

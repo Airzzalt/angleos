@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, PenLine } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getProject } from "@/lib/projects";
 import { getAngle } from "@/lib/ai/angles";
@@ -84,6 +84,9 @@ export default async function AngleDetailPage({ params }: { params: Promise<{ id
 
           <div className="mt-5 border-t border-border pt-4">
             <AngleActionsBar projectId={project.id} id={row.id} favourite={row.favourite} angle={d.angle} hooks={d.hooks} hasDeep={!!d.deep} copyText={copyText} />
+          </div>
+          <div className="mt-3 border-t border-border pt-3">
+            <Link id="make-script" href={`/scripts?project=${project.id}&angle=${row.id}`} className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white hover:brightness-110"><PenLine className="h-4 w-4" /> Write a script for this angle</Link>
           </div>
           <div className="mt-3 border-t border-border pt-3">
             <p className="mb-1 text-xs text-muted">Is this a good angle?</p>

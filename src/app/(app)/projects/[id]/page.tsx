@@ -13,6 +13,7 @@ import { ContextForm, FileUploader, RenameProject } from "@/components/project-f
 import { BriefSections, BuildPanel, type PlanView } from "@/components/brief-panel";
 import { AnglesWorkspace, type AngleView } from "@/components/angles-panel";
 import { getAngles, latestAngleJob } from "@/lib/ai/angles";
+import { getScripts } from "@/lib/ai/scripts";
 import { getAiConfig, readiness } from "@/lib/ai/settings";
 import { getBrief, type BriefRow, latestJob, planBrief, CATEGORY_LABEL } from "@/lib/ai/brief";
 import { usageFor } from "@/lib/usage";
@@ -91,6 +92,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   let angleNote = "";
   let angleCoverage: { theme: string; files: number; status: string; note: string }[] = [];
   let hasBriefForAngles = false;
+  const scriptList = tab === "scripts" ? await getScripts(project.id) : [];
   if (tab === "angles") {
     angleViews = (await getAngles(project.id)).map((r) => ({ id: r.id, favourite: r.favourite, edited: r.edited, runId: r.job_id ?? "none", runAt: String(r.run_at), data: r.data }));
     hasBriefForAngles = ((await query<{ n: number }>("select count(*)::int as n from project_briefs where project_id = $1", [project.id])).rows[0]?.n ?? 0) > 0;
@@ -301,7 +303,18 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           <AnglesWorkspace projectId={project.id} fileCount={files.length} angles={angleViews} job={angleJob} missing={angleMissing} note={angleNote} coverage={angleCoverage} productLine={project.description ?? ""} showProductLine={!hasBriefForAngles} claimLevel={project.claim_level} offer={project.offer ?? ""} initialLikeId={sp.like ?? null} initialMode={sp.deep === "1" ? "deep" : "broad"} />
         </div>
       )}
-      {tab === "scripts" && <EmptyState icon={PenLine} title="No scripts yet" description="Scripts for this product will be saved here. The Script Writer is built in Phase 4." />}
+      {tab === "scripts" && (scriptList.length === 0 ? (
+        <EmptyState icon={PenLine} title="No scripts yet" description="Pick an angle and write your first script." action={<Link href={`/scripts?project=${project.id}`}><Button>Open the Script Writer</Button></Link>} />
+      ) : (
+        <Card className="p-5">
+          <div className="mb-2 flex items-center justify-between gap-2"><h2 className="text-[17px] font-semibold tracking-tight">Scripts</h2><Link href={`/scripts?project=${project.id}`}><Button size="sm" variant="secondary">Write another</Button></Link></div>
+          <ul className="divide-y divide-border" aria-label="Scripts">
+            {scriptList.map((s) => (
+              <li key={s.id}><Link href={`/scripts/${s.id}`} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm hover:text-accent"><span className="min-w-0 break-words">{s.title}</span><span className="text-xs text-muted">v{s.current_version}</span></Link></li>
+            ))}
+          </ul>
+        </Card>
+      ))}
       {tab === "analyses" && <EmptyState icon={ScanSearch} title="No analyses yet" description="Ad breakdowns linked to this product will appear here. Analyze Ad is built in Phase 5." />}
       {tab === "swipe" && <EmptyState icon={Bookmark} title="Nothing saved yet" description="Ads you link to this product will appear here. The Swipe File is built in Phase 5." />}
     </>

@@ -101,7 +101,13 @@ function fakeGenerate(o: GenOpts): GenResult {
   const inputTokens = Math.ceil((o.system.length + o.prompt.length) / 4);
   if (o.prompt.includes("FAKE-FAIL")) throw new AiError("fake failure");
   let text: string;
-  if (o.system.includes("SCRIPT EDITOR")) {
+  if (o.system.includes("SCRIPT REFINER")) {
+    const m = /SCRIPT JSON:\n([\s\S]*?)\nREQUEST:\n([\s\S]*)$/.exec(o.prompt);
+    const script = m ? JSON.parse(m[1]) : { scenes: [] };
+    if (script.scenes?.[0]) script.scenes[0].show = "Refined visual";
+    const conflict = m && /break the rules/i.test(m[2]) ? "Making this longer would push the reading level above grade 6." : "";
+    text = JSON.stringify({ conflict, script });
+  } else if (o.system.includes("SCRIPT EDITOR")) {
     // Stand-in editor: removes the two things the checks look for, so the automatic fix path can be tested.
     text = o.prompt.replace(/^SCRIPT JSON:\n/, "").replace(/delve/gi, "dig").replace(/tapestry/gi, "mess").replace(/ — /g, ". ").replace(/—/g, ",");
   } else if (o.system.includes("ANGLE EDITOR")) {

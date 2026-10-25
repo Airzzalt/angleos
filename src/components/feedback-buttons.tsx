@@ -4,7 +4,7 @@ import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { setFeedbackAction } from "@/app/(app)/mentor/actions";
 
 /** Thumbs up / down. A thumbs down asks "What was wrong?" so the owner can see where the answers fall short. */
-export function FeedbackButtons({ kind, targetId, initial = 0 }: { kind: "chat" | "angle"; targetId: string; initial?: number }) {
+export function FeedbackButtons({ kind, targetId, initial = 0 }: { kind: "chat" | "angle" | "script"; targetId: string; initial?: number }) {
   const [rating, setRating] = useState(initial);
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");

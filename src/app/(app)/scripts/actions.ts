@@ -77,3 +77,53 @@ export async function favouriteScriptAction(projectId: string, id: string) {
   revalidatePath("/scripts");
   revalidatePath(`/scripts/${id}`);
 }
+
+// ---------- One script: edit by hand, refine with a request ----------
+import { getScript, getVersion, refineScript, saveVersion } from "@/lib/ai/scripts";
+import { normaliseScript } from "@/lib/ai/script-shape";
+
+async function mine(scriptId: string) {
+  const me = await requireUser();
+  if (!isId(scriptId)) return { me, script: null };
+  const row = (await query<{ project_id: string }>("select project_id from scripts where id = $1", [scriptId])).rows[0];
+  if (!row) return { me, script: null };
+  const project = await getProject(me, row.project_id);
+  if (!project) return { me, script: null };
+  return { me, script: await getScript(project.id, scriptId) };
+}
+
+export async function saveScriptEditAction(scriptId: string, data: unknown): Promise<{ ok?: boolean; error?: string; version?: number }> {
+  const { me, script } = await mine(scriptId);
+  if (!script) return { error: "That script wasn't found." };
+  const clean = normaliseScript(data);
+  if (!clean) return { error: "A script needs at least one line." };
+  const saved = await saveVersion(me.id, script.id, clean, "edit", "Edited by hand");
+  revalidatePath(`/scripts/${script.id}`);
+  return { ok: true, version: saved.version };
+}
+
+export async function refineScriptAction(scriptId: string, instruction: string, confirmed: boolean): Promise<{ ok?: boolean; error?: string; conflict?: string; version?: number }> {
+  const { me, script } = await mine(scriptId);
+  if (!script) return { error: "That script wasn't found." };
+  const cfg = await getAiConfig();
+  const ready = readinessAngles(cfg);
+  if (!ready.ok) return { error: ready.reason };
+  const cur = await getVersion(script.id, script.current_version);
+  if (!cur) return { error: "That script wasn't found." };
+  const r = await refineScript(me, script, cur.data, instruction, !!confirmed, cfg, ready);
+  if (r.ok) {
+    revalidatePath(`/scripts/${script.id}`);
+    return { ok: true, version: r.version };
+  }
+  return "conflict" in r ? { conflict: r.conflict } : { error: r.error };
+}
+
+export async function restoreVersionAction(scriptId: string, versionNo: number): Promise<{ ok?: boolean; error?: string }> {
+  const { me, script } = await mine(scriptId);
+  if (!script) return { error: "That script wasn't found." };
+  const v = await getVersion(script.id, Math.round(Number(versionNo)));
+  if (!v) return { error: "That version wasn't found." };
+  await saveVersion(me.id, script.id, v.data, "edit", `Restored version ${v.version_no}`);
+  revalidatePath(`/scripts/${script.id}`);
+  return { ok: true };
+}

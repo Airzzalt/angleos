@@ -456,12 +456,12 @@ function AngleCard({ projectId, a, rank, onMore, onDeep }: { projectId: string; 
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <Button variant="secondary" size="sm" onClick={onMore}><Sparkles className="h-4 w-4" /> More like this</Button>
+        <Link href={`/scripts?project=${projectId}&angle=${a.id}`}><Button variant="secondary" size="sm"><PenLine className="h-4 w-4" /> Make a script</Button></Link>
         {!d.deep && <Button variant="ghost" size="sm" onClick={onDeep}><Target className="h-4 w-4" /> Go deep (Sniper)</Button>}
         <Button variant="ghost" size="sm" onClick={() => setEditing((e) => !e)}><Pencil className="h-4 w-4" /> Edit</Button>
         <Button variant="ghost" size="sm" onClick={() => { void navigator.clipboard?.writeText([d.angle, ...d.hooks.map((h, i) => `${i + 1}. ${h}`)].join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>
           <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}
         </Button>
-        <Button variant="ghost" size="sm" disabled title="Coming with the Script Writer" aria-label="Turn this into a script (coming soon)"><PenLine className="h-4 w-4" /> Make a script</Button>
         <Button variant="ghost" size="sm" disabled title="Coming with the Static Ad Builder" aria-label="Turn this into a static ad (coming soon)"><ImageIcon className="h-4 w-4" /> Make a static ad</Button>
         <Button variant="ghost" size="sm" disabled={pending} className="ml-auto" aria-label="Delete this angle" onClick={() => start(() => deleteAngleAction(projectId, a.id))}>
           <Trash2 className="h-4 w-4" />
