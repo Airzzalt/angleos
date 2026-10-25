@@ -111,6 +111,27 @@ export async function generateXai(o: GenOpts): Promise<GenResult> {
 function fakeXai(o: GenOpts): GenResult {
   const inputTokens = Math.ceil((o.system.length + o.prompt.length) / 4);
   if (o.prompt.includes("FAKE-FAIL")) throw new AiError("fake failure");
+  if (o.system.includes("SCRIPT WRITER")) {
+    const bad = o.prompt.includes("FAKE-BAD");
+    const say = [
+      bad ? "Let us delve into why my feet hurt every night — it is a tapestry." : "My feet hurt every night.",
+      "I tried new shoes. None helped.",
+      "Then my sister gave me these. The pain was gone in a week.",
+      "Now I walk all day with no pain at all.",
+      "Fake product is made for sore feet.",
+      "Tap the link and try them today.",
+    ];
+    const rules = [...o.system.matchAll(/^\[([A-Z0-9_]+-\d+)\]/gm)].map((m) => m[1]).slice(0, 2);
+    const text = JSON.stringify({
+      hooks: ["Fake alternate hook one", "Fake alternate hook two", "Fake alternate hook three"],
+      scenes: say.map((s, i) => ({ say: s, show: `Fake visual ${i + 1}` })),
+      cta: "Tap the link and try them today.",
+      claims: [{ claim: "The pain was gone in a week", support: "needs proof" }],
+      note: "Fake shooting note",
+      rules,
+    });
+    return { text, inputTokens, outputTokens: Math.ceil(text.length / 4) };
+  }
   const count = Math.max(1, Math.min(20, Number(/NUMBER OF ANGLES: (\d+)/.exec(o.prompt)?.[1] ?? 3)));
   const names = [...o.prompt.matchAll(/^## (.+?) \[/gm)].map((m) => m[1]).slice(0, 2);
   const rules = [...o.system.matchAll(/^\[([A-Z0-9_]+-\d+|[A-Z]+-\d+)\]/gm)].map((m) => m[1]).slice(0, 2);

@@ -101,7 +101,10 @@ function fakeGenerate(o: GenOpts): GenResult {
   const inputTokens = Math.ceil((o.system.length + o.prompt.length) / 4);
   if (o.prompt.includes("FAKE-FAIL")) throw new AiError("fake failure");
   let text: string;
-  if (o.system.includes("ANGLE EDITOR")) {
+  if (o.system.includes("SCRIPT EDITOR")) {
+    // Stand-in editor: removes the two things the checks look for, so the automatic fix path can be tested.
+    text = o.prompt.replace(/^SCRIPT JSON:\n/, "").replace(/delve/gi, "dig").replace(/tapestry/gi, "mess").replace(/ — /g, ". ").replace(/—/g, ",");
+  } else if (o.system.includes("ANGLE EDITOR")) {
     text = o.prompt;
   } else if (o.system.includes("MENTOR")) {
     const kb = o.prompt.includes("KNOWLEDGE BASE EXTRACTS:") && !o.prompt.includes("KNOWLEDGE BASE EXTRACTS:\n(none found)");
