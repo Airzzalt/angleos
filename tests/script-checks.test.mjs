@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runChecks, readingGrade, findTriplets, findBanned, unsupportedNumbers, parseBanned, hasEmoji, countEmDashes, DEFAULT_BANNED } from "../src/lib/ai/script-checks.ts";
+import { runChecks, hasCta, readingGrade, findTriplets, findBanned, unsupportedNumbers, parseBanned, hasEmoji, countEmDashes, DEFAULT_BANNED } from "../src/lib/ai/script-checks.ts";
 
-const PLAIN = "My feet hurt every night. I tried three pairs of shoes. None helped. Then my sister gave me these. The pain was gone in a week. Now I walk all day with no pain at all. Tap the link and try them.";
+const PLAIN = "My feet hurt every night and I had no idea why. I tried new shoes but none of them helped at all. Then my sister showed me a simple insole that spreads the weight across your whole foot. Simple. If you wait, it only keeps coming back. Tap the link and try them today.";
 
 test("plain talk scores low and passes", () => {
-  const r = runChecks(PLAIN, { facts: "three pairs a week" , needCta: true });
+  const r = runChecks(PLAIN, { facts: "", needCta: true });
   assert.ok(r.grade <= 6.4, `grade ${r.grade}`);
-  assert.equal(r.issues.filter((i) => i.code !== "numbers").length, 0, JSON.stringify(r.issues));
+  assert.equal(r.issues.length, 0, JSON.stringify(r.issues));
 });
 
 test("hard words push the reading grade up and fail", () => {
@@ -54,4 +54,23 @@ test("robotic even sentence length is flagged", () => {
 test("a script with no call to action is flagged when one is needed", () => {
   const r = runChecks("My feet hurt. Then they did not. Odd, right? It was the shoes. That was all.", { needCta: true });
   assert.ok(r.issues.some((i) => i.code === "cta"));
+});
+
+test("a script that is too simple and choppy is flagged", () => {
+  const choppy = "My feet hurt every night. I tried new shoes. None helped. Then my sister gave me these. The pain was gone in a week. Now I walk all day. Tap the link and try them.";
+  assert.ok(readingGrade(choppy) < 2.5);
+  assert.ok(runChecks(choppy).issues.some((i) => i.code === "choppy"));
+});
+
+test("missing beats such as the mechanism are flagged", () => {
+  const r = runChecks(PLAIN, { beats: ["hook", "cost", "cta"], needBeats: ["mechanism", "cost", "cta"] });
+  const b = r.issues.find((i) => i.code === "beats");
+  assert.ok(b && b.detail === "mechanism");
+  assert.ok(!runChecks(PLAIN, { beats: ["mechanism", "cost", "cta"], needBeats: ["mechanism", "cost", "cta"] }).issues.some((i) => i.code === "beats"));
+});
+
+test("a real call to action is needed, not just the word start", () => {
+  assert.equal(hasCta("Start tonight. Let the body you chose catch your eye first."), false);
+  assert.equal(hasCta("Tap the link to get yours today."), true);
+  assert.equal(hasCta("Order yours now."), true);
 });

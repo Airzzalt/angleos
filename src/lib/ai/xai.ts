@@ -114,17 +114,19 @@ function fakeXai(o: GenOpts): GenResult {
   if (o.system.includes("SCRIPT WRITER")) {
     const bad = o.prompt.includes("FAKE-BAD");
     const say = [
-      bad ? "Let us delve into why my feet hurt every night — it is a tapestry." : "My feet hurt every night.",
-      "I tried new shoes. None helped.",
-      "Then my sister gave me these. The pain was gone in a week.",
-      "Now I walk all day with no pain at all.",
-      "Fake product is made for sore feet.",
+      bad ? "Let us delve into why my feet hurt every night — it is a tapestry." : "My feet hurt every night and I had no idea why.",
+      "I tried new shoes but none of them helped at all.",
+      "Then my sister showed me a simple insole that spreads the weight across your whole foot.",
+      "That is why the sore spot finally gets a break. Simple.",
+      "Fake product is made for sore feet, so you can keep walking without a second thought.",
+      "If you wait, it only keeps coming back.",
       "Tap the link and try them today.",
     ];
+    const beats = ["hook", "curiosity", "mechanism", "proof", "difference", "cost", "cta"];
     const rules = [...o.system.matchAll(/^\[([A-Z0-9_]+-\d+)\]/gm)].map((m) => m[1]).slice(0, 2);
     const text = JSON.stringify({
       hooks: ["Fake alternate hook one", "Fake alternate hook two", "Fake alternate hook three"],
-      scenes: say.map((s, i) => ({ say: s, show: `Fake visual ${i + 1}` })),
+      scenes: say.map((s, i) => ({ say: s, show: `Fake visual ${i + 1}`, beat: beats[i] })),
       cta: "Tap the link and try them today.",
       claims: [{ claim: "The pain was gone in a week", support: "needs proof" }],
       note: "Fake shooting note",

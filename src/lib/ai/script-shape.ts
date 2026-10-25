@@ -3,7 +3,8 @@
 const RULE_REF = /\s*[\[(]?\b(?:CORE|RES|ANGLE|MECH|AWARE|BELIEF|HOOK|FORMAT|SCRIPT|EMO|VISUAL|STATIC|OFFER|TEST|BRIEF|ETHICS|ANALYZE|BREAKDOWNS|AIWORK|RMBC|MISC|BA)-\d{1,3}\b[\])]?/g;
 export const scrubRuleRefs = (x: string) => x.replace(RULE_REF, "").replace(/\s{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
 
-export type Scene = { say: string; show: string };
+export const BEATS = ["hook", "curiosity", "problem", "mechanism", "proof", "difference", "cost", "offer", "cta"] as const;
+export type Scene = { say: string; show: string; beat?: string };
 export type Claim = { claim: string; support: string };
 export type ScriptData = { hooks: string[]; scenes: Scene[]; cta: string; claims: Claim[]; note: string };
 
@@ -39,7 +40,11 @@ export function normaliseScript(raw: unknown): ScriptData | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const scenes = (Array.isArray(o.scenes) ? o.scenes : [])
-    .map((x) => ({ say: s((x as Record<string, unknown>)?.say, 700), show: s((x as Record<string, unknown>)?.show, 400) }))
+    .map((x) => {
+      const r = x as Record<string, unknown>;
+      const beat = String(r?.beat ?? "").toLowerCase().trim();
+      return { say: s(r?.say, 700), show: s(r?.show, 400), beat: (BEATS as readonly string[]).includes(beat) ? beat : "" };
+    })
     .filter((x) => x.say)
     .slice(0, 60);
   if (!scenes.length) return null;

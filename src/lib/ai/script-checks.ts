@@ -101,8 +101,11 @@ export function unsupportedNumbers(text: string, facts: string): string[] {
   return [...new Set(bad)];
 }
 
-const CTA = /\b(tap|click|shop|get|grab|order|try|learn|visit|buy|start|claim|join|swipe|see|check|go to|link)\b/i;
-export const hasCta = (t: string) => CTA.test(t.split(/\n/).slice(-4).join(" "));
+// A real call to action tells the viewer to do something: tap, shop, order, claim... "Start tonight" alone is not one.
+const CTA = /\b(tap|click|shop|order|grab|claim|visit|buy|join|swipe|get (?:yours|it|one|started)|try (?:it|them|\w+) (?:today|now|tonight|free|risk)|learn more|go to|link (?:below|in)|check it out|see it)\b/i;
+export const hasCta = (t: string) => CTA.test(t.split(/\n/).slice(-3).join(" "));
+
+export const BEAT_LABELS = { curiosity: "creates curiosity", mechanism: "explains how it works (the mechanism)", proof: "gives a reason to believe it (proof from the facts)", difference: "says why this and not what they tried before", cost: "shows the cost of waiting", cta: "has a clear call to action" } as const;
 
 export type CheckOpts = {
   banned?: string[];
@@ -110,6 +113,9 @@ export type CheckOpts = {
   /** Highest reading grade allowed. Default 6.4 so a "grade 6" script is not failed by a tenth of a point. */
   maxGrade?: number;
   needCta?: boolean;
+  /** Beat labels the script says it covers, and the ones it must cover. */
+  beats?: string[];
+  needBeats?: string[];
 };
 
 export function runChecks(text: string, o: CheckOpts = {}): CheckResult {
@@ -129,6 +135,11 @@ export function runChecks(text: string, o: CheckOpts = {}): CheckResult {
   if (o.facts !== undefined) {
     const nums = unsupportedNumbers(text, o.facts);
     if (nums.length) issues.push({ code: "numbers", message: "Has numbers that are not in the product facts. Remove them or say it without a number.", detail: nums.join(", ") });
+  }
+  if (sentences >= 5 && grade < 2.5) issues.push({ code: "choppy", message: `Reading level is only grade ${grade}, so it reads choppy and robotic. Let some sentences run 10 to 15 words and link ideas with plain joining words, while keeping the words simple.` });
+  if (o.needBeats && o.beats) {
+    const miss = o.needBeats.filter((b) => !o.beats!.includes(b));
+    if (miss.length) issues.push({ code: "beats", message: `The script is missing: ${miss.map((b) => (BEAT_LABELS as Record<string, string>)[b] ?? b).join("; ")}. Rewrite lines so each one is clearly in the script, using only the angle and product facts.`, detail: miss.join(", ") });
   }
   if (o.needCta && !hasCta(text)) issues.push({ code: "cta", message: "No clear call to action at the end." });
   return { grade, words, sentences, issues, pass: issues.length === 0 };
